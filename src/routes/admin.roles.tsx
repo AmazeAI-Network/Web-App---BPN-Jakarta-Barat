@@ -44,7 +44,7 @@ const ROLE_INFO: Record<
     desc: "Akses penuh ke semua fitur sistem.",
   },
   verifikator: {
-    label: "Verifikator",
+    label: "Informasi",
     icon: ClipboardCheck,
     color: "border-info/40",
     tone: "text-info",

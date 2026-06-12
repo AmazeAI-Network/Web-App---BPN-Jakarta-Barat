@@ -1,9 +1,7 @@
-// User/session management. Backed by MySQL `demo_accounts`. Passwords are
-// bcrypt-hashed; sessions use an HMAC-signed HttpOnly cookie (see
-// src/lib/session.server.ts).
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import {
   clearSessionCookie,
   createSessionToken,
@@ -11,6 +9,11 @@ import {
   requireAdmin,
   setSessionCookie,
 } from "@/lib/session.server";
+
+// All access to public.demo_accounts goes through these server functions.
+// RLS denies all anon/authenticated access; supabaseAdmin bypasses RLS.
+// Passwords are stored as bcrypt hashes and NEVER returned to the client.
+// Admin endpoints require an HMAC-signed session cookie with role=admin.
 
 export type UserRole = "admin" | "petugas_loket" | "verifikator";
 
@@ -28,7 +31,7 @@ export type DemoUserPublic = {
 };
 
 const SAFE_COLUMNS =
-  "id, username, name, nip, email, unit_kerja, role, role_label, active, last_login";
+  "id,username,name,nip,email,unit_kerja,role,role_label,active,last_login";
 
 type DbRow = {
   id: string;
@@ -39,7 +42,7 @@ type DbRow = {
   unit_kerja: string;
   role: UserRole;
   role_label: string;
-  active: number | boolean;
+  active: boolean;
   last_login: string | null;
 };
 
@@ -53,7 +56,7 @@ function rowToPublic(r: DbRow): DemoUserPublic {
     unitKerja: r.unit_kerja,
     role: r.role,
     roleLabel: r.role_label,
-    active: Boolean(r.active),
+    active: r.active,
     lastLogin: r.last_login,
   };
 }
@@ -64,6 +67,7 @@ function isBcryptHash(s: string): boolean {
 }
 async function verifyPassword(plain: string, stored: string): Promise<boolean> {
   if (isBcryptHash(stored)) return bcrypt.compare(plain, stored);
+  // Legacy plaintext fallback (will be upgraded on next successful login)
   return stored === plain;
 }
 
@@ -79,24 +83,35 @@ export const verifyDemoLogin = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data }) => {
-    const { q, exec } = await import("@/server/db.server");
-    const rows = await q<DbRow & { password: string }>(
-      `SELECT ${SAFE_COLUMNS}, password FROM demo_accounts WHERE username=? LIMIT 1`,
-      [data.username],
-    );
-    const account = rows[0];
+    const { data: row, error } = await supabaseAdmin
+      .from("demo_accounts")
+      .select(SAFE_COLUMNS + ",password")
+      .eq("username", data.username)
+      .maybeSingle();
+
+    if (error) throw new Error("Tidak dapat memverifikasi akun. Coba lagi.");
+    const account = row as (DbRow & { password: string }) | null;
     if (!account || !account.active) {
       throw new Error("Username atau password salah");
     }
     const ok = await verifyPassword(data.password, account.password);
     if (!ok) throw new Error("Username atau password salah");
 
+    // Opportunistic upgrade of legacy plaintext to bcrypt
     if (!isBcryptHash(account.password)) {
       const hash = await bcrypt.hash(data.password, BCRYPT_COST);
-      await exec(`UPDATE demo_accounts SET password=? WHERE id=?`, [hash, account.id]);
+      await supabaseAdmin
+        .from("demo_accounts")
+        .update({ password: hash })
+        .eq("id", account.id);
     }
-    await exec(`UPDATE demo_accounts SET last_login=NOW(3) WHERE id=?`, [account.id]);
 
+    await supabaseAdmin
+      .from("demo_accounts")
+      .update({ last_login: new Date().toISOString() })
+      .eq("id", account.id);
+
+    // Issue signed session cookie
     const token = createSessionToken({
       uid: account.id,
       username: account.username,
@@ -119,20 +134,27 @@ export const getCurrentSession = createServerFn({ method: "GET" }).handler(
   async () => {
     const s = getSession();
     if (!s) return { authenticated: false as const };
-    return { authenticated: true as const, username: s.username, role: s.role };
+    return {
+      authenticated: true as const,
+      username: s.username,
+      role: s.role,
+    };
   },
 );
 
 // ---------- Admin CRUD (admin-only) ----------
 
-export const listDemoAccounts = createServerFn({ method: "GET" }).handler(async () => {
-  requireAdmin();
-  const { q } = await import("@/server/db.server");
-  const rows = await q<DbRow>(
-    `SELECT ${SAFE_COLUMNS} FROM demo_accounts ORDER BY created_at DESC`,
-  );
-  return rows.map(rowToPublic);
-});
+export const listDemoAccounts = createServerFn({ method: "GET" }).handler(
+  async () => {
+    requireAdmin();
+    const { data, error } = await supabaseAdmin
+      .from("demo_accounts")
+      .select(SAFE_COLUMNS)
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return ((data as DbRow[]) ?? []).map(rowToPublic);
+  },
+);
 
 const writeSchema = z.object({
   id: z.string().uuid().optional(),
@@ -148,7 +170,7 @@ const writeSchema = z.object({
 
 const ROLE_LABEL: Record<UserRole, string> = {
   admin: "Administrator",
-  verifikator: "Verifikator",
+  verifikator: "Informasi",
   petugas_loket: "Petugas Loket",
 };
 
@@ -156,54 +178,51 @@ export const upsertDemoAccount = createServerFn({ method: "POST" })
   .inputValidator((input) => writeSchema.parse(input))
   .handler(async ({ data }) => {
     requireAdmin();
-    const { exec, newUuid } = await import("@/server/db.server");
-    const passwordHash = data.password
-      ? await bcrypt.hash(data.password, BCRYPT_COST)
-      : undefined;
+    const payload: Record<string, unknown> = {
+      username: data.username,
+      name: data.name,
+      nip: data.nip,
+      email: data.email,
+      unit_kerja: data.unitKerja,
+      role: data.role,
+      role_label: ROLE_LABEL[data.role],
+      active: data.active,
+    };
+    if (data.password) {
+      payload.password = await bcrypt.hash(data.password, BCRYPT_COST);
+    }
 
     if (data.id) {
-      const fields = [
-        "username=?","name=?","nip=?","email=?","unit_kerja=?",
-        "role=?","role_label=?","active=?",
-      ];
-      const params: unknown[] = [
-        data.username, data.name, data.nip, data.email, data.unitKerja,
-        data.role, ROLE_LABEL[data.role], data.active ? 1 : 0,
-      ];
-      if (passwordHash) {
-        fields.push("password=?");
-        params.push(passwordHash);
-      }
-      params.push(data.id);
-      await exec(`UPDATE demo_accounts SET ${fields.join(",")} WHERE id=?`, params);
+      const { error } = await supabaseAdmin
+        .from("demo_accounts")
+        .update(payload as never)
+        .eq("id", data.id);
+      if (error) throw new Error(error.message);
       return { ok: true as const, id: data.id };
     }
-    if (!passwordHash) throw new Error("Password wajib diisi untuk user baru");
-    const id = newUuid();
-    try {
-      await exec(
-        `INSERT INTO demo_accounts
-         (id, username, password, name, nip, email, unit_kerja, role, role_label, active)
-         VALUES (?,?,?,?,?,?,?,?,?,?)`,
-        [
-          id, data.username, passwordHash, data.name, data.nip, data.email,
-          data.unitKerja, data.role, ROLE_LABEL[data.role], data.active ? 1 : 0,
-        ],
+    if (!data.password) throw new Error("Password wajib diisi untuk user baru");
+    const { data: inserted, error } = await supabaseAdmin
+      .from("demo_accounts")
+      .insert([payload as never])
+      .select("id")
+      .single();
+    if (error) {
+      throw new Error(
+        error.message.includes("duplicate") ? "Username sudah dipakai" : error.message,
       );
-    } catch (e) {
-      const msg = (e as { message?: string })?.message ?? "";
-      if (/duplicate/i.test(msg)) throw new Error("Username sudah dipakai");
-      throw e;
     }
-    return { ok: true as const, id };
+    return { ok: true as const, id: (inserted as { id: string }).id };
   });
 
 export const deleteDemoAccount = createServerFn({ method: "POST" })
   .inputValidator((input) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data }) => {
     requireAdmin();
-    const { exec } = await import("@/server/db.server");
-    await exec(`DELETE FROM demo_accounts WHERE id=?`, [data.id]);
+    const { error } = await supabaseAdmin
+      .from("demo_accounts")
+      .delete()
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
     return { ok: true as const };
   });
 
@@ -213,8 +232,11 @@ export const setDemoAccountActive = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     requireAdmin();
-    const { exec } = await import("@/server/db.server");
-    await exec(`UPDATE demo_accounts SET active=? WHERE id=?`, [data.active ? 1 : 0, data.id]);
+    const { error } = await supabaseAdmin
+      .from("demo_accounts")
+      .update({ active: data.active })
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
     return { ok: true as const };
   });
 
@@ -229,10 +251,14 @@ export const resetDemoAccountPassword = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     requireAdmin();
-    const { exec } = await import("@/server/db.server");
     const newPassword = data.newPassword ?? generateTempPassword();
     const hash = await bcrypt.hash(newPassword, BCRYPT_COST);
-    await exec(`UPDATE demo_accounts SET password=? WHERE id=?`, [hash, data.id]);
+    const { error } = await supabaseAdmin
+      .from("demo_accounts")
+      .update({ password: hash })
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    // Returned once so the admin can communicate it; not logged server-side.
     return { ok: true as const, newPassword };
   });
 

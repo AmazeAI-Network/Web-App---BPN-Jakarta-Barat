@@ -1,6 +1,6 @@
-// Authenticated upload + signed-URL issuance for pengamanan PDFs.
-// Storage backend is local filesystem (see src/server/file-storage.server.ts);
-// swap that module to S3/etc. without touching this file.
+// Server-only file storage helpers for PDF files (formerly Supabase Storage).
+// Reads/writes require an authenticated session; the service-role client is
+// only used after the session has been validated.
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSession } from "@/lib/session.server";
@@ -17,8 +17,12 @@ export const getPengamananSignedUrl = createServerFn({ method: "POST" })
   .inputValidator((input) => PathSchema.parse(input))
   .handler(async ({ data }) => {
     requireSession();
-    const { buildSignedUrl } = await import("@/server/file-storage.server");
-    return { signedUrl: buildSignedUrl(data.path, 60 * 10) };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: signed, error } = await supabaseAdmin.storage
+      .from("pengamanan-files")
+      .createSignedUrl(data.path, 60 * 10);
+    if (error || !signed?.signedUrl) throw new Error("File PDF belum dapat dibuka");
+    return { signedUrl: signed.signedUrl };
   });
 
 const UploadSchema = z.object({
@@ -34,10 +38,13 @@ export const uploadPengamananFile = createServerFn({ method: "POST" })
   .inputValidator((input) => UploadSchema.parse(input))
   .handler(async ({ data }) => {
     requireSession();
-    const { saveFile } = await import("@/server/file-storage.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const bytes = Uint8Array.from(atob(data.contentBase64), (c) => c.charCodeAt(0));
     if (bytes.length > 10 * 1024 * 1024) throw new Error("Ukuran file maksimal 10 MB");
     const safeName = `${Date.now()}-${data.fileName}`;
-    await saveFile(safeName, bytes);
+    const { error } = await supabaseAdmin.storage
+      .from("pengamanan-files")
+      .upload(safeName, bytes, { contentType: "application/pdf", upsert: true });
+    if (error) throw new Error("PDF belum dapat diupload. Coba pilih ulang file.");
     return { path: safeName };
   });

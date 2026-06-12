@@ -68,6 +68,7 @@ export type Peminjaman = {
   status: StatusPeminjaman;
   tipe: TipePeminjaman;
   createdBy?: string;
+  createdByRole?: "admin" | "petugas_loket" | "verifikator";
   tglPengajuan: string;
   tglUpdate: string;
   catatan?: string;
@@ -93,6 +94,7 @@ type DbRow = {
   status: string;
   tipe: string | null;
   created_by: string | null;
+  created_by_role: string | null;
   catatan: string | null;
   tgl_pengajuan: string;
   tgl_update: string;
@@ -119,6 +121,7 @@ function rowToPeminjaman(r: DbRow): Peminjaman {
     status: r.status as StatusPeminjaman,
     tipe: (r.tipe as TipePeminjaman) ?? "register",
     createdBy: r.created_by ?? undefined,
+    createdByRole: (r.created_by_role as Peminjaman["createdByRole"]) ?? undefined,
     tglPengajuan: r.tgl_pengajuan,
     tglUpdate: r.tgl_update,
     catatan: r.catatan ?? undefined,

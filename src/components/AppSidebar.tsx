@@ -39,10 +39,11 @@ const ALL: UserRole[] = ["admin", "petugas_loket", "verifikator"];
 const mainItems: NavItem[] = [
   { label: "Dashboard", to: "/", icon: LayoutDashboard, roles: ALL },
   { label: "Peminjaman Register", to: "/peminjaman/register", icon: FileEdit, roles: ["admin", "petugas_loket"] },
-  { label: "Peminjaman Verifikasi", to: "/peminjaman/verifikasi", icon: CheckCircle2, roles: ["admin", "verifikator"] },
+  { label: "Peminjaman Verifikasi", to: "/peminjaman/verifikasi", icon: CheckCircle2, roles: ["admin"] },
   { label: "Peminjaman Konfirmasi", to: "/peminjaman/konfirmasi", icon: ClipboardCheck, roles: ["admin"] },
-  { label: "Peminjaman Informasi", to: "/peminjaman/informasi", icon: BookOpen, roles: ["admin"] },
+  { label: "Peminjaman Informasi", to: "/peminjaman/informasi", icon: BookOpen, roles: ["admin", "verifikator"] },
   { label: "Pengembalian", to: "/pengembalian", icon: Undo2, roles: ["admin", "petugas_loket"] },
+  { label: "Pengembalian Admin", to: "/pengembalian/admin", icon: Undo2, roles: ["admin"] },
   { label: "Monitoring Peminjaman", to: "/monitoring", icon: Activity, roles: ["admin", "petugas_loket"] },
 ];
 

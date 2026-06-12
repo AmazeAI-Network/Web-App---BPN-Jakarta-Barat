@@ -28,6 +28,9 @@ import {
   Undo2,
   ShieldCheck,
   PackageCheck,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
 } from "lucide-react";
 import {
   usePeminjaman,
@@ -71,6 +74,39 @@ function MonitoringPage() {
   const [toRevert, setToRevert] = useState<Peminjaman | null>(null);
   const [toArchive, setToArchive] = useState<Peminjaman | null>(null);
   const [busy, setBusy] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  type SortKey = "noHak" | "desa" | "peminjam" | "kegiatan" | "jenisPeminjaman" | "tglPengajuan" | "tglKonfirmasi" | "status";
+  type SortRule = { key: SortKey; dir: "asc" | "desc" };
+  const [sorts, setSorts] = useState<SortRule[]>([{ key: "tglPengajuan", dir: "desc" }]);
+  const toggleSort = (k: SortKey, additive: boolean) => {
+    setSorts((prev) => {
+      const idx = prev.findIndex((s) => s.key === k);
+      if (!additive) {
+        if (idx === 0 && prev.length === 1) {
+          return [{ key: k, dir: prev[0].dir === "asc" ? "desc" : "asc" }];
+        }
+        return [{ key: k, dir: "asc" }];
+      }
+      if (idx === -1) return [...prev, { key: k, dir: "asc" }];
+      const next = [...prev];
+      const cur = next[idx];
+      if (cur.dir === "asc") next[idx] = { key: k, dir: "desc" };
+      else next.splice(idx, 1);
+      return next.length ? next : [{ key: "tglPengajuan", dir: "desc" }];
+    });
+  };
+  const SortIcon = ({ k }: { k: SortKey }) => {
+    const idx = sorts.findIndex((s) => s.key === k);
+    if (idx === -1) return <ArrowUpDown className="ml-1 inline h-3 w-3 opacity-40" />;
+    const rule = sorts[idx];
+    return (
+      <span className="ml-1 inline-flex items-center text-primary">
+        {rule.dir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+        {sorts.length > 1 && <span className="ml-0.5 text-[9px] font-bold">{idx + 1}</span>}
+      </span>
+    );
+  };
 
   const isAdmin = user?.role === "admin";
   const isLoket = user?.role === "petugas_loket";
@@ -106,8 +142,27 @@ function MonitoringPage() {
           (p.noHt ?? "").toLowerCase().includes(k) ||
           p.kegiatan.toLowerCase().includes(k),
       )
-      .sort((a, b) => (a.tglPengajuan < b.tglPengajuan ? 1 : -1));
-  }, [items, q, statusFilter, kegiatanFilter]);
+      .sort((a, b) => {
+        for (const s of sorts) {
+          const av = (a[s.key] ?? "") as string;
+          const bv = (b[s.key] ?? "") as string;
+          if (av === bv) continue;
+          const dir = s.dir === "asc" ? 1 : -1;
+          return av < bv ? -dir : dir;
+        }
+        return 0;
+      });
+  }, [items, q, statusFilter, kegiatanFilter, sorts]);
+
+  // Reset ke halaman 1 saat filter/pencarian berubah
+  useMemo(() => {
+    setPage(1);
+  }, [q, statusFilter, kegiatanFilter, pageSize]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const startIdx = (currentPage - 1) * pageSize;
+  const pageRows = filtered.slice(startIdx, startIdx + pageSize);
 
   const counts = useMemo(() => {
     const c: Record<StatusPeminjaman, number> = {
@@ -265,22 +320,22 @@ function MonitoringPage() {
                   <thead className="border-y bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground">
                     <tr>
                       <th className="px-2 py-3 text-left font-semibold">No.</th>
-                      <th className="px-2 py-3 text-left font-semibold">No. Hak / Jenis</th>
-                      <th className="px-2 py-3 text-left font-semibold">Desa / Kec.</th>
+                      <th className="px-2 py-3 text-left font-semibold cursor-pointer select-none hover:text-foreground" onClick={(e) => toggleSort("noHak", e.shiftKey)}>No. Hak / Jenis<SortIcon k="noHak" /></th>
+                      <th className="px-2 py-3 text-left font-semibold cursor-pointer select-none hover:text-foreground" onClick={(e) => toggleSort("desa", e.shiftKey)}>Desa / Kec.<SortIcon k="desa" /></th>
                       <th className="px-2 py-3 text-left font-semibold">No. SU/Warkah/HT</th>
-                      <th className="px-2 py-3 text-left font-semibold">Nama Peminjam</th>
-                      <th className="px-2 py-3 text-left font-semibold">Kegiatan</th>
-                      <th className="px-2 py-3 text-left font-semibold">KET</th>
-                      <th className="px-2 py-3 text-left font-semibold">Tgl Pengajuan</th>
-                      <th className="px-2 py-3 text-left font-semibold">Tgl Konfirmasi</th>
-                      <th className="px-2 py-3 text-left font-semibold">Status</th>
+                      <th className="px-2 py-3 text-left font-semibold cursor-pointer select-none hover:text-foreground" onClick={(e) => toggleSort("peminjam", e.shiftKey)}>Nama Peminjam<SortIcon k="peminjam" /></th>
+                      <th className="px-2 py-3 text-left font-semibold cursor-pointer select-none hover:text-foreground" onClick={(e) => toggleSort("kegiatan", e.shiftKey)}>Kegiatan<SortIcon k="kegiatan" /></th>
+                      <th className="px-2 py-3 text-left font-semibold cursor-pointer select-none hover:text-foreground" onClick={(e) => toggleSort("jenisPeminjaman", e.shiftKey)}>KET<SortIcon k="jenisPeminjaman" /></th>
+                      <th className="px-2 py-3 text-left font-semibold cursor-pointer select-none hover:text-foreground" onClick={(e) => toggleSort("tglPengajuan", e.shiftKey)}>Tgl Pengajuan<SortIcon k="tglPengajuan" /></th>
+                      <th className="px-2 py-3 text-left font-semibold cursor-pointer select-none hover:text-foreground" onClick={(e) => toggleSort("tglKonfirmasi", e.shiftKey)}>Tgl Konfirmasi<SortIcon k="tglKonfirmasi" /></th>
+                      <th className="px-2 py-3 text-left font-semibold cursor-pointer select-none hover:text-foreground" onClick={(e) => toggleSort("status", e.shiftKey)}>Status<SortIcon k="status" /></th>
                       <th className="px-2 py-3 text-right font-semibold">Aksi</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
-                    {filtered.map((p, idx) => (
+                    {pageRows.map((p, idx) => (
                       <tr key={p.id} className="hover:bg-muted/30 align-top">
-                        <td className="px-2 py-3 text-xs text-muted-foreground">{idx + 1}</td>
+                        <td className="px-2 py-3 text-xs text-muted-foreground">{startIdx + idx + 1}</td>
                         <td className="px-2 py-3">
                           <p className="font-mono text-sm font-bold text-foreground">{p.noHak}</p>
                           <p className="text-[11px] font-semibold uppercase text-primary">
@@ -370,6 +425,33 @@ function MonitoringPage() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+            {filtered.length > 0 && (
+              <div className="flex flex-col gap-3 border-t bg-muted/20 px-4 py-3 text-xs sm:flex-row sm:items-center sm:justify-between">
+                <div className="text-muted-foreground">
+                  Menampilkan <span className="font-semibold text-foreground">{startIdx + 1}</span>
+                  –<span className="font-semibold text-foreground">{Math.min(startIdx + pageSize, filtered.length)}</span>
+                  {" "}dari <span className="font-semibold text-foreground">{filtered.length}</span> data
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-muted-foreground">Baris/hal:</span>
+                  <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
+                    <SelectTrigger className="h-8 w-[80px] text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {[25, 50, 100, 200].map((n) => (
+                        <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <div className="ml-2 flex items-center gap-1">
+                    <Button size="sm" variant="outline" className="h-8 px-2" disabled={currentPage === 1} onClick={() => setPage(1)}>«</Button>
+                    <Button size="sm" variant="outline" className="h-8 px-2" disabled={currentPage === 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>‹</Button>
+                    <span className="px-2 font-semibold">Hal {currentPage} / {totalPages}</span>
+                    <Button size="sm" variant="outline" className="h-8 px-2" disabled={currentPage === totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>›</Button>
+                    <Button size="sm" variant="outline" className="h-8 px-2" disabled={currentPage === totalPages} onClick={() => setPage(totalPages)}>»</Button>
+                  </div>
+                </div>
               </div>
             )}
           </CardContent>

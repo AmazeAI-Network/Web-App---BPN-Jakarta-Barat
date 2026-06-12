@@ -14,6 +14,7 @@ import { Route as MonitoringRouteImport } from './routes/monitoring'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PengembalianPengamananRouteImport } from './routes/pengembalian_.pengamanan'
+import { Route as PengembalianAdminRouteImport } from './routes/pengembalian_.admin'
 import { Route as PeminjamanVerifikasiRouteImport } from './routes/peminjaman.verifikasi'
 import { Route as PeminjamanRegisterRouteImport } from './routes/peminjaman.register'
 import { Route as PeminjamanPengamananRouteImport } from './routes/peminjaman.pengamanan'
@@ -25,7 +26,6 @@ import { Route as MasterKegiatanRouteImport } from './routes/master.kegiatan'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminRolesRouteImport } from './routes/admin.roles'
 import { Route as ApiPublicSendEmailRouteImport } from './routes/api/public/send-email'
-import { Route as ApiFilesPengamananNameRouteImport } from './routes/api/files/pengamanan/$name'
 
 const PengembalianRoute = PengembalianRouteImport.update({
   id: '/pengembalian',
@@ -50,6 +50,11 @@ const IndexRoute = IndexRouteImport.update({
 const PengembalianPengamananRoute = PengembalianPengamananRouteImport.update({
   id: '/pengembalian_/pengamanan',
   path: '/pengembalian/pengamanan',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PengembalianAdminRoute = PengembalianAdminRouteImport.update({
+  id: '/pengembalian_/admin',
+  path: '/pengembalian/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PeminjamanVerifikasiRoute = PeminjamanVerifikasiRouteImport.update({
@@ -107,11 +112,6 @@ const ApiPublicSendEmailRoute = ApiPublicSendEmailRouteImport.update({
   path: '/api/public/send-email',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiFilesPengamananNameRoute = ApiFilesPengamananNameRouteImport.update({
-  id: '/api/files/pengamanan/$name',
-  path: '/api/files/pengamanan/$name',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -128,9 +128,9 @@ export interface FileRoutesByFullPath {
   '/peminjaman/pengamanan': typeof PeminjamanPengamananRoute
   '/peminjaman/register': typeof PeminjamanRegisterRoute
   '/peminjaman/verifikasi': typeof PeminjamanVerifikasiRoute
+  '/pengembalian/admin': typeof PengembalianAdminRoute
   '/pengembalian/pengamanan': typeof PengembalianPengamananRoute
   '/api/public/send-email': typeof ApiPublicSendEmailRoute
-  '/api/files/pengamanan/$name': typeof ApiFilesPengamananNameRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -147,9 +147,9 @@ export interface FileRoutesByTo {
   '/peminjaman/pengamanan': typeof PeminjamanPengamananRoute
   '/peminjaman/register': typeof PeminjamanRegisterRoute
   '/peminjaman/verifikasi': typeof PeminjamanVerifikasiRoute
+  '/pengembalian/admin': typeof PengembalianAdminRoute
   '/pengembalian/pengamanan': typeof PengembalianPengamananRoute
   '/api/public/send-email': typeof ApiPublicSendEmailRoute
-  '/api/files/pengamanan/$name': typeof ApiFilesPengamananNameRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -167,9 +167,9 @@ export interface FileRoutesById {
   '/peminjaman/pengamanan': typeof PeminjamanPengamananRoute
   '/peminjaman/register': typeof PeminjamanRegisterRoute
   '/peminjaman/verifikasi': typeof PeminjamanVerifikasiRoute
+  '/pengembalian_/admin': typeof PengembalianAdminRoute
   '/pengembalian_/pengamanan': typeof PengembalianPengamananRoute
   '/api/public/send-email': typeof ApiPublicSendEmailRoute
-  '/api/files/pengamanan/$name': typeof ApiFilesPengamananNameRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -188,9 +188,9 @@ export interface FileRouteTypes {
     | '/peminjaman/pengamanan'
     | '/peminjaman/register'
     | '/peminjaman/verifikasi'
+    | '/pengembalian/admin'
     | '/pengembalian/pengamanan'
     | '/api/public/send-email'
-    | '/api/files/pengamanan/$name'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -207,9 +207,9 @@ export interface FileRouteTypes {
     | '/peminjaman/pengamanan'
     | '/peminjaman/register'
     | '/peminjaman/verifikasi'
+    | '/pengembalian/admin'
     | '/pengembalian/pengamanan'
     | '/api/public/send-email'
-    | '/api/files/pengamanan/$name'
   id:
     | '__root__'
     | '/'
@@ -226,9 +226,9 @@ export interface FileRouteTypes {
     | '/peminjaman/pengamanan'
     | '/peminjaman/register'
     | '/peminjaman/verifikasi'
+    | '/pengembalian_/admin'
     | '/pengembalian_/pengamanan'
     | '/api/public/send-email'
-    | '/api/files/pengamanan/$name'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -246,9 +246,9 @@ export interface RootRouteChildren {
   PeminjamanPengamananRoute: typeof PeminjamanPengamananRoute
   PeminjamanRegisterRoute: typeof PeminjamanRegisterRoute
   PeminjamanVerifikasiRoute: typeof PeminjamanVerifikasiRoute
+  PengembalianAdminRoute: typeof PengembalianAdminRoute
   PengembalianPengamananRoute: typeof PengembalianPengamananRoute
   ApiPublicSendEmailRoute: typeof ApiPublicSendEmailRoute
-  ApiFilesPengamananNameRoute: typeof ApiFilesPengamananNameRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -286,6 +286,13 @@ declare module '@tanstack/react-router' {
       path: '/pengembalian/pengamanan'
       fullPath: '/pengembalian/pengamanan'
       preLoaderRoute: typeof PengembalianPengamananRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pengembalian_/admin': {
+      id: '/pengembalian_/admin'
+      path: '/pengembalian/admin'
+      fullPath: '/pengembalian/admin'
+      preLoaderRoute: typeof PengembalianAdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/peminjaman/verifikasi': {
@@ -365,13 +372,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicSendEmailRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/files/pengamanan/$name': {
-      id: '/api/files/pengamanan/$name'
-      path: '/api/files/pengamanan/$name'
-      fullPath: '/api/files/pengamanan/$name'
-      preLoaderRoute: typeof ApiFilesPengamananNameRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
@@ -390,10 +390,19 @@ const rootRouteChildren: RootRouteChildren = {
   PeminjamanPengamananRoute: PeminjamanPengamananRoute,
   PeminjamanRegisterRoute: PeminjamanRegisterRoute,
   PeminjamanVerifikasiRoute: PeminjamanVerifikasiRoute,
+  PengembalianAdminRoute: PengembalianAdminRoute,
   PengembalianPengamananRoute: PengembalianPengamananRoute,
   ApiPublicSendEmailRoute: ApiPublicSendEmailRoute,
-  ApiFilesPengamananNameRoute: ApiFilesPengamananNameRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}

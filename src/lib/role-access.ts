@@ -9,8 +9,8 @@ export const ROUTE_ACCESS: { prefix: string; roles: UserRole[] }[] = [
   // Register: admin + petugas loket
   { prefix: "/peminjaman/register", roles: ["admin", "petugas_loket"] },
 
-  // Peminjaman Informasi: admin only
-  { prefix: "/peminjaman/informasi", roles: ["admin"] },
+  // Peminjaman Informasi (layar monitor): admin + verifikator
+  { prefix: "/peminjaman/informasi", roles: ["admin", "verifikator"] },
 
   // Verifikasi: verifikator + admin
   { prefix: "/peminjaman/verifikasi", roles: ["admin", "verifikator"] },
@@ -18,6 +18,7 @@ export const ROUTE_ACCESS: { prefix: string; roles: UserRole[] }[] = [
   // Konfirmasi & Pengembalian: hanya admin
   { prefix: "/peminjaman/konfirmasi", roles: ["admin"] },
   { prefix: "/pengembalian/pengamanan", roles: ["admin"] },
+  { prefix: "/pengembalian/admin", roles: ["admin"] },
   { prefix: "/pengembalian", roles: ["admin", "petugas_loket"] },
 
   // Monitoring Peminjaman (tabel inti): admin + petugas loket

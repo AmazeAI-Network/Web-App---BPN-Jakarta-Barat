@@ -36,6 +36,8 @@ export const Route = createFileRoute("/peminjaman/register")({
 
 // Peminjam options dimuat dari master data (tabel peminjam)
 
+type HtEntry = { id: string; no: string; tahun: string };
+
 type WarkahRow = {
   id: string;
   noHak: string;
@@ -46,8 +48,7 @@ type WarkahRow = {
   tahunSu: string;
   noWarkah: string;
   tahunWarkah: string;
-  noHt: string;
-  tahunHt: string;
+  htList: HtEntry[];
 };
 
 export const JENIS_PEMINJAMAN_OPTIONS = [
@@ -60,6 +61,8 @@ export const JENIS_PEMINJAMAN_OPTIONS = [
   "Warkah",
 ] as const;
 
+const emptyHt = (): HtEntry => ({ id: crypto.randomUUID(), no: "", tahun: "" });
+
 const emptyRow = (): WarkahRow => ({
   id: crypto.randomUUID(),
   noHak: "",
@@ -70,14 +73,18 @@ const emptyRow = (): WarkahRow => ({
   tahunSu: "",
   noWarkah: "",
   tahunWarkah: "",
-  noHt: "",
-  tahunHt: "",
+  htList: [emptyHt()],
 });
 
 
 // Validation schema — Buku Tanah, Surat Ukur & Warkah
 // Aturan: Desa & Kecamatan WAJIB. Minimal salah satu dari No.Hak / No.SU / No.Warkah terisi.
 // Jenis Hak hanya wajib bila No.Hak terisi. No.HT selalu opsional.
+const htEntrySchema = z.object({
+  no: z.string().trim().max(50),
+  tahun: z.string().regex(/^(\d{4})?$/, "Tahun harus 4 digit"),
+});
+
 const rowSchema = z
   .object({
     noHak: z.string().trim().max(50),
@@ -88,15 +95,13 @@ const rowSchema = z
     tahunSu: z.string().regex(/^(\d{4})?$/, "Tahun harus 4 digit"),
     noWarkah: z.string().trim().max(50),
     tahunWarkah: z.string().regex(/^(\d{4})?$/, "Tahun harus 4 digit"),
-    noHt: z.string().trim().max(50),
-    tahunHt: z.string().regex(/^(\d{4})?$/, "Tahun harus 4 digit"),
+    htList: z.array(htEntrySchema).default([]),
   })
   .superRefine((v, ctx) => {
     const noHak = v.noHak.trim();
     const noSu = v.noSu.trim();
     const noWarkah = v.noWarkah.trim();
 
-    // Minimal salah satu dari ketiga peran utama harus diisi
     if (!noHak && !noSu && !noWarkah) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -105,7 +110,6 @@ const rowSchema = z
       });
     }
 
-    // Jenis Hak wajib bila No.Hak diisi
     if (noHak && !v.jenisHak.trim()) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -114,11 +118,9 @@ const rowSchema = z
       });
     }
 
-    // Tahun wajib 4 digit bila nomor terisi
     const pairs: [string, string, string][] = [
       [noSu, v.tahunSu.trim(), "No. SU"],
       [noWarkah, v.tahunWarkah.trim(), "No. Warkah"],
-      [v.noHt.trim(), v.tahunHt.trim(), "No. HT"],
     ];
     for (const [no, th, label] of pairs) {
       if (no && !/^\d{4}$/.test(th)) {
@@ -126,6 +128,16 @@ const rowSchema = z
           code: z.ZodIssueCode.custom,
           path: ["tahunSu"],
           message: `Tahun ${label} wajib 4 digit`,
+        });
+      }
+    }
+
+    for (const ht of v.htList) {
+      if (ht.no.trim() && !/^\d{4}$/.test(ht.tahun.trim())) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["htList"],
+          message: "Tahun HT wajib 4 digit untuk setiap nomor HT",
         });
       }
     }
@@ -249,7 +261,16 @@ function PeminjamanRegisterPage() {
       no_su: r.noSu && r.tahunSu ? `${r.noSu}/${r.tahunSu}` : r.noSu || null,
       no_warkah:
         r.noWarkah && r.tahunWarkah ? `${r.noWarkah}/${r.tahunWarkah}` : r.noWarkah || null,
-      no_ht: r.noHt && r.tahunHt ? `${r.noHt}/${r.tahunHt}` : r.noHt || null,
+      no_ht:
+        r.htList
+          .map((h) => {
+            const no = h.no.trim();
+            const th = h.tahun.trim();
+            if (!no) return "";
+            return th ? `${no}/${th}` : no;
+          })
+          .filter(Boolean)
+          .join("; ") || null,
       jenis_peminjaman: jenisPeminjaman || null,
       status: "Proses Pencarian",
       tipe: "register",
@@ -540,23 +561,71 @@ function PeminjamanRegisterPage() {
                           />
                         </div>
                       </td>
-                      <td className="px-2 py-2">
-                        <div className="flex gap-1">
-                          <Input
-                            value={row.noHt}
-                            onChange={(e) => updateRow(row.id, { noHt: e.target.value.slice(0, 50) })}
-                            placeholder="No. HT"
-                            className="h-9"
-                          />
-                          <Input
-                            value={row.tahunHt}
-                            onChange={(e) =>
-                              updateRow(row.id, { tahunHt: e.target.value.replace(/\D/g, "").slice(0, 4) })
-                            }
-                            placeholder="Tahun"
-                            className="h-9 w-20"
-                            inputMode="numeric"
-                          />
+                      <td className="px-2 py-2 min-w-[220px]">
+                        <div className="space-y-1.5">
+                          {row.htList.map((ht, idx) => (
+                            <div key={ht.id} className="flex gap-1">
+                              <Input
+                                value={ht.no}
+                                onChange={(e) => {
+                                  const v = e.target.value.slice(0, 50);
+                                  updateRow(row.id, {
+                                    htList: row.htList.map((h) =>
+                                      h.id === ht.id ? { ...h, no: v } : h,
+                                    ),
+                                  });
+                                }}
+                                placeholder="No. HT"
+                                className="h-9"
+                              />
+                              <Input
+                                value={ht.tahun}
+                                onChange={(e) => {
+                                  const v = e.target.value.replace(/\D/g, "").slice(0, 4);
+                                  updateRow(row.id, {
+                                    htList: row.htList.map((h) =>
+                                      h.id === ht.id ? { ...h, tahun: v } : h,
+                                    ),
+                                  });
+                                }}
+                                placeholder="Tahun"
+                                className="h-9 w-20"
+                                inputMode="numeric"
+                              />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-9 w-9 shrink-0 text-destructive hover:bg-destructive/10"
+                                onClick={() =>
+                                  updateRow(row.id, {
+                                    htList:
+                                      row.htList.length > 1
+                                        ? row.htList.filter((h) => h.id !== ht.id)
+                                        : [emptyHt()],
+                                  })
+                                }
+                                aria-label="Hapus HT"
+                                disabled={row.htList.length <= 1 && !ht.no && !ht.tahun}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                              {idx === row.htList.length - 1 && (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="icon"
+                                  className="h-9 w-9 shrink-0"
+                                  onClick={() =>
+                                    updateRow(row.id, { htList: [...row.htList, emptyHt()] })
+                                  }
+                                  aria-label="Tambah HT"
+                                >
+                                  <Plus className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
+                            </div>
+                          ))}
                         </div>
                       </td>
                       <td className="px-2 py-2 text-right">

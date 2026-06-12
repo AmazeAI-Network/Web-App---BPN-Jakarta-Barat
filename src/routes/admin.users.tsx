@@ -46,7 +46,7 @@ type AppUser = DemoUserPublic;
 
 const ROLE_LABEL: Record<RoleKey, string> = {
   admin: "Administrator",
-  verifikator: "Verifikator",
+  verifikator: "Informasi",
   petugas_loket: "Petugas Loket",
 };
 
@@ -255,7 +255,7 @@ function UsersPage() {
                   <SelectContent>
                     <SelectItem value="all">Semua role</SelectItem>
                     <SelectItem value="admin">Administrator</SelectItem>
-                    <SelectItem value="verifikator">Verifikator</SelectItem>
+                    <SelectItem value="verifikator">Informasi</SelectItem>
                     <SelectItem value="petugas_loket">Petugas Loket</SelectItem>
                   </SelectContent>
                 </Select>
@@ -387,7 +387,7 @@ function UsersPage() {
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="admin">Administrator</SelectItem>
-                  <SelectItem value="verifikator">Verifikator</SelectItem>
+                  <SelectItem value="verifikator">Informasi</SelectItem>
                   <SelectItem value="petugas_loket">Petugas Loket</SelectItem>
                 </SelectContent>
               </Select>

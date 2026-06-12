@@ -64,9 +64,21 @@ function PengembalianRegisterPage() {
   const nextStatus: StatusPeminjaman = isLoket ? "Proses Dikembalikan" : "Sudah Dikembalikan";
 
   const list = useMemo(
-    () => items.filter((p) => p.tipe !== "pengamanan" && p.status === targetStatus),
-    [items, targetStatus],
+    () =>
+      items.filter((p) => {
+        if (p.tipe === "pengamanan") return false;
+        if (p.status !== targetStatus) return false;
+        // Item yang diregister oleh Admin diarahkan ke menu khusus
+        // /pengembalian/admin — jangan tampilkan di alur Loket.
+        if (isLoket && p.createdByRole === "admin") return false;
+        // Loket hanya boleh melihat pengajuan miliknya sendiri agar
+        // data tidak tercampur antar akun loket.
+        if (isLoket && p.createdBy !== user?.username) return false;
+        return true;
+      }),
+    [items, targetStatus, isLoket, user?.username],
   );
+
 
   const overdueOf = (iso: string) =>
     Math.floor((Date.now() - new Date(iso).getTime()) / (1000 * 60 * 60 * 24));
