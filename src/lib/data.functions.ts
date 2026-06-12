@@ -22,7 +22,15 @@ const PeminjamanInsertSchema = z.object({
   no_warkah: z.string().max(64).nullable().optional(),
   no_ht: z.string().max(64).nullable().optional(),
   jenis_peminjaman: z.string().max(64).nullable().optional(),
-  file_pengamanan_url: z.string().max(512).nullable().optional(),
+  file_pengamanan_url: z
+    .string()
+    .max(512)
+    .regex(
+      /^https?:\/\/[^/]+\/storage\/v1\/object\/(public|sign)\/pengamanan-files\/[a-zA-Z0-9._\-\/?=&%]+$/,
+      "URL file pengamanan tidak valid",
+    )
+    .nullable()
+    .optional(),
   status: z.string().min(1).max(64),
   tipe: z.enum(["register", "pengamanan"]),
   created_by: z.string().max(128).nullable().optional(),

@@ -26,7 +26,6 @@ import { Route as MasterKegiatanRouteImport } from './routes/master.kegiatan'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminRolesRouteImport } from './routes/admin.roles'
 import { Route as ApiPublicSendEmailRouteImport } from './routes/api/public/send-email'
-import { Route as ApiFilesPengamananNameRouteImport } from './routes/api/files/pengamanan/$name'
 
 const PengembalianRoute = PengembalianRouteImport.update({
   id: '/pengembalian',
@@ -113,11 +112,6 @@ const ApiPublicSendEmailRoute = ApiPublicSendEmailRouteImport.update({
   path: '/api/public/send-email',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiFilesPengamananNameRoute = ApiFilesPengamananNameRouteImport.update({
-  id: '/api/files/pengamanan/$name',
-  path: '/api/files/pengamanan/$name',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -137,7 +131,6 @@ export interface FileRoutesByFullPath {
   '/pengembalian/admin': typeof PengembalianAdminRoute
   '/pengembalian/pengamanan': typeof PengembalianPengamananRoute
   '/api/public/send-email': typeof ApiPublicSendEmailRoute
-  '/api/files/pengamanan/$name': typeof ApiFilesPengamananNameRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -157,7 +150,6 @@ export interface FileRoutesByTo {
   '/pengembalian/admin': typeof PengembalianAdminRoute
   '/pengembalian/pengamanan': typeof PengembalianPengamananRoute
   '/api/public/send-email': typeof ApiPublicSendEmailRoute
-  '/api/files/pengamanan/$name': typeof ApiFilesPengamananNameRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -178,7 +170,6 @@ export interface FileRoutesById {
   '/pengembalian_/admin': typeof PengembalianAdminRoute
   '/pengembalian_/pengamanan': typeof PengembalianPengamananRoute
   '/api/public/send-email': typeof ApiPublicSendEmailRoute
-  '/api/files/pengamanan/$name': typeof ApiFilesPengamananNameRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -200,7 +191,6 @@ export interface FileRouteTypes {
     | '/pengembalian/admin'
     | '/pengembalian/pengamanan'
     | '/api/public/send-email'
-    | '/api/files/pengamanan/$name'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -220,7 +210,6 @@ export interface FileRouteTypes {
     | '/pengembalian/admin'
     | '/pengembalian/pengamanan'
     | '/api/public/send-email'
-    | '/api/files/pengamanan/$name'
   id:
     | '__root__'
     | '/'
@@ -240,7 +229,6 @@ export interface FileRouteTypes {
     | '/pengembalian_/admin'
     | '/pengembalian_/pengamanan'
     | '/api/public/send-email'
-    | '/api/files/pengamanan/$name'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -261,7 +249,6 @@ export interface RootRouteChildren {
   PengembalianAdminRoute: typeof PengembalianAdminRoute
   PengembalianPengamananRoute: typeof PengembalianPengamananRoute
   ApiPublicSendEmailRoute: typeof ApiPublicSendEmailRoute
-  ApiFilesPengamananNameRoute: typeof ApiFilesPengamananNameRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -385,13 +372,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicSendEmailRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/files/pengamanan/$name': {
-      id: '/api/files/pengamanan/$name'
-      path: '/api/files/pengamanan/$name'
-      fullPath: '/api/files/pengamanan/$name'
-      preLoaderRoute: typeof ApiFilesPengamananNameRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
@@ -413,7 +393,6 @@ const rootRouteChildren: RootRouteChildren = {
   PengembalianAdminRoute: PengembalianAdminRoute,
   PengembalianPengamananRoute: PengembalianPengamananRoute,
   ApiPublicSendEmailRoute: ApiPublicSendEmailRoute,
-  ApiFilesPengamananNameRoute: ApiFilesPengamananNameRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -19,7 +19,9 @@ function extractPengamananPath(url: string): string | null {
 async function openPengamananPdf(url: string) {
   const path = extractPengamananPath(url);
   if (!path) {
-    window.open(url, "_blank", "noopener,noreferrer");
+    toast.error("URL file tidak valid", {
+      description: "File pengamanan tidak dapat dibuka karena URL tidak dikenali.",
+    });
     return;
   }
   try {
