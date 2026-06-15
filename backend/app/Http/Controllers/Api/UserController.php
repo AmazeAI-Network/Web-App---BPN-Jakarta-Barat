@@ -13,6 +13,7 @@ class UserController extends Controller
     private array $roleLabel = [
         'admin' => 'Administrator',
         'verifikator' => 'Informasi',
+        'verifikasi' => 'Verifikasi',
         'petugas_loket' => 'Petugas Loket',
     ];
 
@@ -74,7 +75,7 @@ class UserController extends Controller
             'nip' => ['nullable', 'string', 'max:50'],
             'email' => ['required', 'email', 'max:255'],
             'unitKerja' => ['nullable', 'string', 'max:200'],
-            'role' => ['required', 'in:admin,verifikator,petugas_loket'],
+            'role' => ['required', 'in:admin,verifikator,verifikasi,petugas_loket'],
             'active' => ['required', 'boolean'],
             'password' => [$isNew ? 'required' : 'nullable', 'string', 'max:200'],
         ]) + ['unit_kerja' => $r->input('unitKerja', '')];

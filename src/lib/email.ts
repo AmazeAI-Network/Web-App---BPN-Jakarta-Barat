@@ -66,16 +66,13 @@ function escape(s: string) {
 export async function sendStatusEmail(p: EmailPayload): Promise<boolean> {
   if (!p.to || !p.to.includes("@")) return false;
   try {
-    const r = await fetch("/api/public/send-email", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        to: p.to,
-        subject: `[BPN Jakbar] ${p.status} — ${p.noRegister}`,
-        html: buildHtml(p),
-      }),
+    const { api } = await import("@/lib/api");
+    await api.post("/notifications/email", {
+      to: p.to,
+      subject: `[BPN Jakbar] ${p.status} — ${p.noRegister}`,
+      html: buildHtml(p),
     });
-    return r.ok;
+    return true;
   } catch {
     return false;
   }

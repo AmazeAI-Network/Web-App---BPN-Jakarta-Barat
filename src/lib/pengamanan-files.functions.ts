@@ -1,50 +1,25 @@
-// Server-only file storage helpers for PDF files (formerly Supabase Storage).
-// Reads/writes require an authenticated session; the service-role client is
-// only used after the session has been validated.
-import { createServerFn } from "@tanstack/react-start";
-import { z } from "zod";
-import { requireSession } from "@/lib/session.server";
+// File storage helpers backed by Laravel.
+import { api, unwrap } from "@/lib/api";
 
-const PathSchema = z.object({
-  path: z
-    .string()
-    .min(1)
-    .max(512)
-    .regex(/^[a-zA-Z0-9._-]+$/, "Nama file tidak valid"),
-});
+type SignedInput = { path: string };
 
-export const getPengamananSignedUrl = createServerFn({ method: "POST" })
-  .inputValidator((input) => PathSchema.parse(input))
-  .handler(async ({ data }) => {
-    requireSession();
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: signed, error } = await supabaseAdmin.storage
-      .from("pengamanan-files")
-      .createSignedUrl(data.path, 60 * 10);
-    if (error || !signed?.signedUrl) throw new Error("File PDF belum dapat dibuka");
-    return { signedUrl: signed.signedUrl };
+export async function getPengamananSignedUrl(
+  input: { data: SignedInput } | SignedInput,
+): Promise<{ signedUrl: string }> {
+  const data = unwrap<SignedInput>(input)!;
+  return api.post<{ signedUrl: string }>("/files/pengamanan/signed-url", {
+    path: data.path,
   });
+}
 
-const UploadSchema = z.object({
-  fileName: z
-    .string()
-    .min(1)
-    .max(255)
-    .regex(/^[a-zA-Z0-9._-]+$/, "Nama file tidak valid"),
-  contentBase64: z.string().min(1).max(20 * 1024 * 1024),
-});
+type UploadInput = { fileName: string; contentBase64: string };
 
-export const uploadPengamananFile = createServerFn({ method: "POST" })
-  .inputValidator((input) => UploadSchema.parse(input))
-  .handler(async ({ data }) => {
-    requireSession();
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const bytes = Uint8Array.from(atob(data.contentBase64), (c) => c.charCodeAt(0));
-    if (bytes.length > 10 * 1024 * 1024) throw new Error("Ukuran file maksimal 10 MB");
-    const safeName = `${Date.now()}-${data.fileName}`;
-    const { error } = await supabaseAdmin.storage
-      .from("pengamanan-files")
-      .upload(safeName, bytes, { contentType: "application/pdf", upsert: true });
-    if (error) throw new Error("PDF belum dapat diupload. Coba pilih ulang file.");
-    return { path: safeName };
+export async function uploadPengamananFile(
+  input: { data: UploadInput } | UploadInput,
+): Promise<{ path: string }> {
+  const data = unwrap<UploadInput>(input)!;
+  return api.post<{ path: string }>("/files/pengamanan/upload", {
+    fileName: data.fileName,
+    contentBase64: data.contentBase64,
   });
+}

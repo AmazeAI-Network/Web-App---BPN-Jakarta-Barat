@@ -1,13 +1,10 @@
-import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
+import { Outlet, Link, createRootRoute, HeadContent } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/lib/auth";
 import { PeminjamanProvider } from "@/lib/peminjaman-store";
 
-import appCss from "../styles.css?url";
-
 // Auto-recovery untuk stale chunk (build baru sementara user masih buka tab lama).
-// Tanpa ini, user lihat layar putih / aksi gagal saat klik tombol/route.
 function useChunkErrorRecovery() {
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -22,7 +19,7 @@ function useChunkErrorRecovery() {
     const tryReload = () => {
       try {
         const last = Number(sessionStorage.getItem(RELOAD_KEY) ?? "0");
-        if (Date.now() - last < 10_000) return; // hindari loop reload
+        if (Date.now() - last < 10_000) return;
         sessionStorage.setItem(RELOAD_KEY, String(Date.now()));
         window.location.reload();
       } catch {
@@ -76,62 +73,29 @@ function NotFoundComponent() {
 export const Route = createRootRoute({
   head: () => ({
     meta: [
-      { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Kantor Pertanahan Kota Administrasi Jakarta Barat" },
-      { name: "description", content: "Sistem Informasi Peminjaman Warkah - Kantor Pertanahan Kota Administrasi Jakarta Barat" },
-      { name: "author", content: "BPN Jakarta Barat" },
-      { property: "og:title", content: "Kantor Pertanahan Kota Administrasi Jakarta Barat" },
-      { property: "og:description", content: "Sistem Informasi Peminjaman Warkah - Kantor Pertanahan Kota Administrasi Jakarta Barat" },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Lovable" },
-      { name: "twitter:title", content: "Kantor Pertanahan Kota Administrasi Jakarta Barat" },
-      { name: "twitter:description", content: "Sistem Informasi Peminjaman Warkah - Kantor Pertanahan Kota Administrasi Jakarta Barat" },
-      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/1973ea27-1165-4cc6-adef-763140a0de31" },
-      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/1973ea27-1165-4cc6-adef-763140a0de31" },
-    ],
-    links: [
-      { rel: "stylesheet", href: appCss },
-      { rel: "icon", type: "image/png", sizes: "64x64", href: "/favicon.png" },
-      { rel: "icon", type: "image/png", sizes: "192x192", href: "/apple-touch-icon.png" },
-      { rel: "apple-touch-icon", sizes: "192x192", href: "/apple-touch-icon.png" },
-      { rel: "shortcut icon", type: "image/png", href: "/favicon.png" },
-      { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap",
+        name: "description",
+        content:
+          "Sistem Informasi Peminjaman Warkah - Kantor Pertanahan Kota Administrasi Jakarta Barat",
       },
     ],
   }),
-  shellComponent: RootShell,
   component: RootComponent,
   notFoundComponent: NotFoundComponent,
 });
 
-function RootShell({ children }: { children: React.ReactNode }) {
-  return (
-    <html lang="en">
-      <head>
-        <HeadContent />
-      </head>
-      <body>
-        {children}
-        <Scripts />
-      </body>
-    </html>
-  );
-}
-
 function RootComponent() {
   useChunkErrorRecovery();
   return (
-    <AuthProvider>
-      <PeminjamanProvider>
-        <Outlet />
-        <Toaster richColors position="top-right" closeButton />
-      </PeminjamanProvider>
-    </AuthProvider>
+    <>
+      <HeadContent />
+      <AuthProvider>
+        <PeminjamanProvider>
+          <Outlet />
+          <Toaster richColors position="top-right" closeButton />
+        </PeminjamanProvider>
+      </AuthProvider>
+    </>
   );
 }

@@ -40,13 +40,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-type RoleKey = "admin" | "verifikator" | "petugas_loket";
+type RoleKey = "admin" | "verifikator" | "verifikasi" | "petugas_loket";
 
 type AppUser = DemoUserPublic;
 
 const ROLE_LABEL: Record<RoleKey, string> = {
   admin: "Administrator",
   verifikator: "Informasi",
+  verifikasi: "Verifikasi",
   petugas_loket: "Petugas Loket",
 };
 
@@ -210,13 +211,15 @@ function UsersPage() {
       ? "bg-primary/10 text-primary border-primary/30"
       : r === "verifikator"
         ? "bg-info/10 text-info border-info/30"
-        : "bg-success/10 text-success border-success/30";
+        : r === "verifikasi"
+          ? "bg-warning/10 text-warning border-warning/30"
+          : "bg-success/10 text-success border-success/30";
 
   return (
     <AppShell title="Users" subtitle="Manajemen akun pengguna sistem peminjaman warkah">
       <div className="space-y-6">
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          {(["all", "admin", "verifikator", "petugas_loket"] as const).map((k) => {
+          {(["all", "admin", "verifikator", "verifikasi", "petugas_loket"] as const).map((k) => {
             const count = k === "all" ? users.length : users.filter((u) => u.role === k).length;
             const label = k === "all" ? "Total Pengguna" : ROLE_LABEL[k];
             return (
@@ -256,6 +259,7 @@ function UsersPage() {
                     <SelectItem value="all">Semua role</SelectItem>
                     <SelectItem value="admin">Administrator</SelectItem>
                     <SelectItem value="verifikator">Informasi</SelectItem>
+                    <SelectItem value="verifikasi">Verifikasi</SelectItem>
                     <SelectItem value="petugas_loket">Petugas Loket</SelectItem>
                   </SelectContent>
                 </Select>
@@ -388,6 +392,7 @@ function UsersPage() {
                 <SelectContent>
                   <SelectItem value="admin">Administrator</SelectItem>
                   <SelectItem value="verifikator">Informasi</SelectItem>
+                  <SelectItem value="verifikasi">Verifikasi</SelectItem>
                   <SelectItem value="petugas_loket">Petugas Loket</SelectItem>
                 </SelectContent>
               </Select>

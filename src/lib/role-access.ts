@@ -12,8 +12,8 @@ export const ROUTE_ACCESS: { prefix: string; roles: UserRole[] }[] = [
   // Peminjaman Informasi (layar monitor): admin + verifikator
   { prefix: "/peminjaman/informasi", roles: ["admin", "verifikator"] },
 
-  // Verifikasi: verifikator + admin
-  { prefix: "/peminjaman/verifikasi", roles: ["admin", "verifikator"] },
+  // Verifikasi: verifikator + verifikasi + admin
+  { prefix: "/peminjaman/verifikasi", roles: ["admin", "verifikator", "verifikasi"] },
 
   // Konfirmasi & Pengembalian: hanya admin
   { prefix: "/peminjaman/konfirmasi", roles: ["admin"] },

@@ -1,253 +1,140 @@
-// Guarded data-access server functions. The browser no longer talks to the
-// peminjaman / peminjam / kegiatan tables directly — every read and write
-// goes through these handlers, which validate the HMAC session cookie before
-// using the service-role Supabase client.
-import { createServerFn } from "@tanstack/react-start";
-import { z } from "zod";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { requireAdmin, requireSession } from "@/lib/session.server";
+// Client-side data-access wrappers backed by the Laravel API.
+import { api, unwrap } from "@/lib/api";
 
 // ---------------- Peminjaman ----------------
 
-const PeminjamanInsertSchema = z.object({
-  no_register: z.string().min(1).max(64),
-  peminjam: z.string().min(1).max(255),
-  email: z.string().email().max(255).nullable().optional(),
-  kegiatan: z.string().min(1).max(255),
-  no_hak: z.string().max(64),
-  jenis_hak: z.string().max(64),
-  desa: z.string().max(128).nullable().optional(),
-  kecamatan: z.string().max(128).nullable().optional(),
-  no_su: z.string().max(64).nullable().optional(),
-  no_warkah: z.string().max(64).nullable().optional(),
-  no_ht: z.string().max(64).nullable().optional(),
-  jenis_peminjaman: z.string().max(64).nullable().optional(),
-  file_pengamanan_url: z
-    .string()
-    .max(512)
-    .regex(
-      /^https?:\/\/[^/]+\/storage\/v1\/object\/(public|sign)\/pengamanan-files\/[a-zA-Z0-9._\-\/?=&%]+$/,
-      "URL file pengamanan tidak valid",
-    )
-    .nullable()
-    .optional(),
-  status: z.string().min(1).max(64),
-  tipe: z.enum(["register", "pengamanan"]),
-  created_by: z.string().max(128).nullable().optional(),
-  catatan: z.string().max(2000).nullable().optional(),
-});
+export type PeminjamanRow = Record<string, unknown> & {
+  id: string;
+  created_by?: string | null;
+  created_by_role?: string | null;
+};
 
-export const listPeminjaman = createServerFn({ method: "GET" }).handler(
-  async () => {
-    requireSession();
-    const { data, error } = await supabaseAdmin
-      .from("peminjaman")
-      .select("*")
-      .order("tgl_pengajuan", { ascending: false });
-    if (error) throw new Error(error.message);
-    const rows = (data ?? []) as Array<Record<string, unknown>>;
-    // Attach created_by_role via demo_accounts lookup so the UI can route
-    // admin-registered peminjaman to the admin-only pengembalian menu.
-    const usernames = Array.from(
-      new Set(rows.map((r) => r.created_by).filter((v): v is string => !!v)),
-    );
-    const roleMap = new Map<string, string>();
-    if (usernames.length) {
-      const { data: accounts } = await supabaseAdmin
-        .from("demo_accounts")
-        .select("username,role")
-        .in("username", usernames);
-      for (const a of (accounts ?? []) as Array<{ username: string; role: string }>) {
-        roleMap.set(a.username, a.role);
-      }
-    }
-    return rows.map((r) => ({
-      ...r,
-      created_by_role:
-        typeof r.created_by === "string" ? (roleMap.get(r.created_by) ?? null) : null,
-    }));
-  },
-);
+export async function listPeminjaman(): Promise<PeminjamanRow[]> {
+  return api.get<PeminjamanRow[]>("/peminjaman");
+}
 
-export const insertPeminjaman = createServerFn({ method: "POST" })
-  .inputValidator((input) =>
-    z.object({ rows: z.array(PeminjamanInsertSchema).min(1).max(50) }).parse(input),
-  )
-  .handler(async ({ data }) => {
-    const session = requireSession();
-    // Stamp created_by from the trusted session, ignore any client value.
-    const rows = data.rows.map((r) => ({ ...r, created_by: session.username }));
-    const { error } = await supabaseAdmin.from("peminjaman").insert(rows as never);
-    if (error) throw new Error(error.message);
-    return { ok: true as const, count: rows.length };
-  });
+type InsertInput = { rows: Array<Record<string, unknown>> };
 
-const UpdateStatusSchema = z.object({
-  id: z.string().uuid(),
-  status: z.string().min(1).max(64),
-  catatan: z.string().max(2000).nullable().optional(),
-  dikonfirmasi_oleh: z.string().max(128).optional(),
-});
+export async function insertPeminjaman(
+  input: { data: InsertInput } | InsertInput,
+): Promise<{ ok: true; count: number }> {
+  const data = unwrap<InsertInput>(input)!;
+  const r = await api.post<{ count: number }>("/peminjaman", { rows: data.rows });
+  return { ok: true, count: r.count };
+}
 
-export const updatePeminjamanStatus = createServerFn({ method: "POST" })
-  .inputValidator((input) => UpdateStatusSchema.parse(input))
-  .handler(async ({ data }) => {
-    requireSession();
-    const now = new Date().toISOString();
-    const patch: Record<string, unknown> = {
+type UpdateStatusInput = {
+  id: string;
+  status: string;
+  catatan?: string | null;
+  dikonfirmasi_oleh?: string;
+};
+
+export async function updatePeminjamanStatus(
+  input: { data: UpdateStatusInput } | UpdateStatusInput,
+): Promise<{ ok: true; tgl_update: string }> {
+  const data = unwrap<UpdateStatusInput>(input)!;
+  const r = await api.patch<{ tgl_update: string }>(
+    `/peminjaman/${data.id}/status`,
+    {
       status: data.status,
-      tgl_update: now,
       catatan: data.catatan ?? null,
-    };
-    if (data.dikonfirmasi_oleh) {
-      patch.dikonfirmasi_oleh = data.dikonfirmasi_oleh;
-      patch.tgl_konfirmasi = now;
-    }
-    const { error } = await supabaseAdmin
-      .from("peminjaman")
-      .update(patch as never)
-      .eq("id", data.id);
-    if (error) throw new Error(error.message);
-    return { ok: true as const, tgl_update: now };
-  });
+      dikonfirmasi_oleh: data.dikonfirmasi_oleh,
+    },
+  );
+  return { ok: true, tgl_update: r.tgl_update };
+}
 
-export const deletePeminjaman = createServerFn({ method: "POST" })
-  .inputValidator((input) => z.object({ id: z.string().uuid() }).parse(input))
-  .handler(async ({ data }) => {
-    requireAdmin();
-    const { error } = await supabaseAdmin
-      .from("peminjaman")
-      .delete()
-      .eq("id", data.id);
-    if (error) throw new Error(error.message);
-    return { ok: true as const };
-  });
+export async function deletePeminjaman(
+  input: { data: { id: string } } | { id: string },
+): Promise<{ ok: true }> {
+  const { id } = unwrap<{ id: string }>(input)!;
+  await api.del(`/peminjaman/${id}`);
+  return { ok: true };
+}
 
 // ---------------- Kegiatan ----------------
 
-const KegiatanWriteSchema = z.object({
-  id: z.string().uuid().optional(),
-  nama: z.string().trim().min(1).max(200),
-  deskripsi: z.string().trim().max(1000).nullable().optional(),
-  aktif: z.boolean().default(true),
-});
+export type KegiatanRow = {
+  id: string;
+  nama: string;
+  deskripsi: string | null;
+  aktif: boolean;
+};
 
-export const listKegiatan = createServerFn({ method: "GET" }).handler(
-  async () => {
-    requireSession();
-    const { data, error } = await supabaseAdmin
-      .from("kegiatan")
-      .select("id,nama,deskripsi,aktif")
-      .order("nama");
-    if (error) throw new Error(error.message);
-    return data ?? [];
-  },
-);
+type KegiatanWrite = {
+  id?: string;
+  nama: string;
+  deskripsi?: string | null;
+  aktif?: boolean;
+};
 
-export const upsertKegiatan = createServerFn({ method: "POST" })
-  .inputValidator((input) => KegiatanWriteSchema.parse(input))
-  .handler(async ({ data }) => {
-    requireAdmin();
-    if (data.id) {
-      const { error } = await supabaseAdmin
-        .from("kegiatan")
-        .update({
-          nama: data.nama,
-          deskripsi: data.deskripsi ?? null,
-          aktif: data.aktif,
-        } as never)
-        .eq("id", data.id);
-      if (error) throw new Error(error.message);
-      return { ok: true as const, id: data.id };
-    }
-    const { data: inserted, error } = await supabaseAdmin
-      .from("kegiatan")
-      .insert([
-        {
-          nama: data.nama,
-          deskripsi: data.deskripsi ?? null,
-          aktif: data.aktif,
-        } as never,
-      ])
-      .select("id")
-      .single();
-    if (error) throw new Error(error.message);
-    return { ok: true as const, id: (inserted as { id: string }).id };
-  });
+export async function listKegiatan(): Promise<KegiatanRow[]> {
+  return api.get<KegiatanRow[]>("/kegiatan");
+}
 
-export const deleteKegiatan = createServerFn({ method: "POST" })
-  .inputValidator((input) => z.object({ id: z.string().uuid() }).parse(input))
-  .handler(async ({ data }) => {
-    requireAdmin();
-    const { error } = await supabaseAdmin
-      .from("kegiatan")
-      .delete()
-      .eq("id", data.id);
-    if (error) throw new Error(error.message);
-    return { ok: true as const };
-  });
+export async function upsertKegiatan(
+  input: { data: KegiatanWrite } | KegiatanWrite,
+): Promise<{ ok: true; id: string }> {
+  const data = unwrap<KegiatanWrite>(input)!;
+  if (data.id) {
+    const r = await api.put<{ id: string }>(`/kegiatan/${data.id}`, data);
+    return { ok: true, id: r.id };
+  }
+  const r = await api.post<{ id: string }>("/kegiatan", data);
+  return { ok: true, id: r.id };
+}
+
+export async function deleteKegiatan(
+  input: { data: { id: string } } | { id: string },
+): Promise<{ ok: true }> {
+  const { id } = unwrap<{ id: string }>(input)!;
+  await api.del(`/kegiatan/${id}`);
+  return { ok: true };
+}
 
 // ---------------- Peminjam (master) ----------------
 
-const PeminjamWriteSchema = z.object({
-  id: z.string().uuid().optional(),
-  kode: z.string().trim().min(1).max(64),
-  nama: z.string().trim().min(1).max(200),
-  jenis: z.string().trim().max(64),
-  email: z.string().trim().email().max(255).nullable().optional(),
-  telepon: z.string().trim().max(64).nullable().optional(),
-  aktif: z.boolean().default(true),
-});
+export type PeminjamRow = {
+  id: string;
+  kode: string;
+  nama: string;
+  jenis: string;
+  email: string | null;
+  telepon: string | null;
+  aktif: boolean;
+};
 
-export const listPeminjamMaster = createServerFn({ method: "GET" }).handler(
-  async () => {
-    requireSession();
-    const { data, error } = await supabaseAdmin
-      .from("peminjam")
-      .select("id,kode,nama,jenis,email,telepon,aktif")
-      .order("kode");
-    if (error) throw new Error(error.message);
-    return data ?? [];
-  },
-);
+type PeminjamWrite = {
+  id?: string;
+  kode: string;
+  nama: string;
+  jenis: string;
+  email?: string | null;
+  telepon?: string | null;
+  aktif?: boolean;
+};
 
-export const upsertPeminjamMaster = createServerFn({ method: "POST" })
-  .inputValidator((input) => PeminjamWriteSchema.parse(input))
-  .handler(async ({ data }) => {
-    requireAdmin();
-    const payload = {
-      kode: data.kode.toUpperCase(),
-      nama: data.nama,
-      jenis: data.jenis,
-      email: data.email ?? null,
-      telepon: data.telepon ?? null,
-      aktif: data.aktif,
-    };
-    if (data.id) {
-      const { error } = await supabaseAdmin
-        .from("peminjam")
-        .update(payload as never)
-        .eq("id", data.id);
-      if (error) throw new Error(error.message);
-      return { ok: true as const, id: data.id };
-    }
-    const { data: inserted, error } = await supabaseAdmin
-      .from("peminjam")
-      .insert([payload as never])
-      .select("id")
-      .single();
-    if (error) throw new Error(error.message);
-    return { ok: true as const, id: (inserted as { id: string }).id };
-  });
+export async function listPeminjamMaster(): Promise<PeminjamRow[]> {
+  return api.get<PeminjamRow[]>("/peminjam");
+}
 
-export const deletePeminjamMaster = createServerFn({ method: "POST" })
-  .inputValidator((input) => z.object({ id: z.string().uuid() }).parse(input))
-  .handler(async ({ data }) => {
-    requireAdmin();
-    const { error } = await supabaseAdmin
-      .from("peminjam")
-      .delete()
-      .eq("id", data.id);
-    if (error) throw new Error(error.message);
-    return { ok: true as const };
-  });
+export async function upsertPeminjamMaster(
+  input: { data: PeminjamWrite } | PeminjamWrite,
+): Promise<{ ok: true; id: string }> {
+  const data = unwrap<PeminjamWrite>(input)!;
+  if (data.id) {
+    const r = await api.put<{ id: string }>(`/peminjam/${data.id}`, data);
+    return { ok: true, id: r.id };
+  }
+  const r = await api.post<{ id: string }>("/peminjam", data);
+  return { ok: true, id: r.id };
+}
+
+export async function deletePeminjamMaster(
+  input: { data: { id: string } } | { id: string },
+): Promise<{ ok: true }> {
+  const { id } = unwrap<{ id: string }>(input)!;
+  await api.del(`/peminjam/${id}`);
+  return { ok: true };
+}

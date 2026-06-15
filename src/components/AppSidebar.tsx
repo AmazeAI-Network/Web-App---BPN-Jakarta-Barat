@@ -34,7 +34,7 @@ type NavGroup = {
   items: NavItem[];
 };
 
-const ALL: UserRole[] = ["admin", "petugas_loket", "verifikator"];
+const ALL: UserRole[] = ["admin", "petugas_loket", "verifikator", "verifikasi"];
 
 const mainItems: NavItem[] = [
   { label: "Dashboard", to: "/", icon: LayoutDashboard, roles: ALL },

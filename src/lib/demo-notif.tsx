@@ -66,6 +66,18 @@ const NOTIF_BY_ROLE: Record<UserRole, DemoNotifContent[]> = {
       primaryLabel: "Lihat",
     },
   ],
+  verifikasi: [
+    {
+      title: "Tugas Verifikasi Baru",
+      body: "Ada berkas baru yang menunggu proses verifikasi.",
+      primaryLabel: "Verifikasi",
+    },
+    {
+      title: "Pengingat Antrian Verifikasi",
+      body: "Masih ada berkas dalam antrian verifikasi Anda.",
+      primaryLabel: "Lihat",
+    },
+  ],
 };
 
 let counter = 0;

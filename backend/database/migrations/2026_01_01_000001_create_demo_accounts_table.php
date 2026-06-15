@@ -15,7 +15,7 @@ return new class extends Migration {
             $t->string('nip', 50)->default('');
             $t->string('email', 255);
             $t->string('unit_kerja', 200)->default('');
-            $t->enum('role', ['admin', 'verifikator', 'petugas_loket']);
+            $t->enum('role', ['admin', 'verifikator', 'verifikasi', 'petugas_loket']);
             $t->string('role_label', 100);
             $t->boolean('active')->default(true);
             $t->timestamp('last_login')->nullable();

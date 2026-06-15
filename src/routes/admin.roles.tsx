@@ -9,7 +9,7 @@ import { useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
-type RoleKey = "admin" | "verifikator" | "petugas_loket";
+type RoleKey = "admin" | "verifikator" | "verifikasi" | "petugas_loket";
 
 type Permission = {
   key: string;
@@ -51,6 +51,14 @@ const ROLE_INFO: Record<
     ring: "bg-info/10",
     desc: "Hanya menerima atau menolak pengajuan peminjaman.",
   },
+  verifikasi: {
+    label: "Verifikasi",
+    icon: ClipboardCheck,
+    color: "border-warning/40",
+    tone: "text-warning",
+    ring: "bg-warning/10",
+    desc: "Melakukan proses verifikasi berkas peminjaman warkah.",
+  },
   petugas_loket: {
     label: "Petugas Loket",
     icon: FileEdit,
@@ -69,6 +77,18 @@ const DEFAULT_MATRIX: Record<RoleKey, Record<string, boolean>> = {
     "peminjaman.verifikasi": true,
     "peminjaman.konfirmasi": false,
     "pengembalian.verif": false,
+    "pengamanan.keputusan": false,
+    "monitoring.view": true,
+    "users.manage": false,
+    "roles.manage": false,
+    "master.manage": false,
+  },
+  verifikasi: {
+    "peminjaman.input": false,
+    "peminjaman.serah": false,
+    "peminjaman.verifikasi": true,
+    "peminjaman.konfirmasi": false,
+    "pengembalian.verif": true,
     "pengamanan.keputusan": false,
     "monitoring.view": true,
     "users.manage": false,

@@ -68,7 +68,7 @@ export type Peminjaman = {
   status: StatusPeminjaman;
   tipe: TipePeminjaman;
   createdBy?: string;
-  createdByRole?: "admin" | "petugas_loket" | "verifikator";
+  createdByRole?: "admin" | "petugas_loket" | "verifikator" | "verifikasi";
   tglPengajuan: string;
   tglUpdate: string;
   catatan?: string;

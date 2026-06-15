@@ -5,7 +5,7 @@ import {
   verifyDemoLogin,
 } from "@/lib/demo-accounts.functions";
 
-export type UserRole = "admin" | "petugas_loket" | "verifikator";
+export type UserRole = "admin" | "petugas_loket" | "verifikator" | "verifikasi";
 
 export type DemoUser = {
   username: string;
