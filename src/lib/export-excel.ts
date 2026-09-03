@@ -117,3 +117,70 @@ export function exportRekapPerStatusExcel(items: Peminjaman[], filenamePrefix = 
 
   save(wb, filenamePrefix);
 }
+
+const STATUS_PENGEMBALIAN = new Set([
+  "Proses Dikembalikan",
+  "Sudah Dikembalikan",
+  "Pengembalian Diterima",
+  "Dikembalikan",
+]);
+
+function inMonth(iso: string | undefined, year: number, month: number) {
+  if (!iso) return false;
+  const d = new Date(iso);
+  return (
+    !Number.isNaN(d.getTime()) && d.getFullYear() === year && d.getMonth() === month - 1
+  );
+}
+
+/**
+ * Ekspor laporan bulanan (tanggal 1–31) Peminjaman & Pengembalian.
+ * - Sheet "Peminjaman": data yang diajukan pada bulan tsb (tgl pengajuan).
+ * - Sheet "Pengembalian": data yang diupdate ke status pengembalian pada bulan tsb.
+ * - Sheet "Ringkasan": total + rincian per hari (1–31).
+ */
+export function exportBulananExcel(items: Peminjaman[], year: number, month: number) {
+  const bulanLabel = new Date(year, month - 1, 1).toLocaleDateString("id-ID", {
+    month: "long",
+    year: "numeric",
+  });
+
+  const peminjaman = items.filter((p) => inMonth(p.tglPengajuan, year, month));
+  const pengembalian = items.filter(
+    (p) => STATUS_PENGEMBALIAN.has(p.status) && inMonth(p.tglUpdate, year, month),
+  );
+
+  const wb = XLSX.utils.book_new();
+
+  const ringkasan: Record<string, unknown>[] = [
+    { Keterangan: "Periode", Jumlah: `1–31 ${bulanLabel}` },
+    { Keterangan: "Total Peminjaman (pengajuan bulan ini)", Jumlah: peminjaman.length },
+    { Keterangan: "Total Pengembalian (update bulan ini)", Jumlah: pengembalian.length },
+    { Keterangan: "", Jumlah: "" },
+    { Keterangan: "Rincian per Tanggal", Jumlah: "" },
+  ];
+  for (let day = 1; day <= 31; day++) {
+    const jmPinjam = peminjaman.filter((p) => new Date(p.tglPengajuan!).getDate() === day).length;
+    const jmKembali = pengembalian.filter((p) => new Date(p.tglUpdate!).getDate() === day).length;
+    if (jmPinjam === 0 && jmKembali === 0) continue;
+    ringkasan.push({
+      Keterangan: `Tanggal ${day}`,
+      Jumlah: `Peminjaman: ${jmPinjam} | Pengembalian: ${jmKembali}`,
+    });
+  }
+  const wsSum = XLSX.utils.json_to_sheet(ringkasan);
+  wsSum["!cols"] = [{ wch: 42 }, { wch: 40 }];
+  XLSX.utils.book_append_sheet(wb, wsSum, "Ringkasan");
+
+  const rowsP = peminjaman.map(baseRow);
+  const wsP = XLSX.utils.json_to_sheet(rowsP.length ? rowsP : [{ "No.": "Tidak ada data" }]);
+  wsP["!cols"] = autoCols(rowsP);
+  XLSX.utils.book_append_sheet(wb, wsP, "Peminjaman");
+
+  const rowsK = pengembalian.map(baseRow);
+  const wsK = XLSX.utils.json_to_sheet(rowsK.length ? rowsK : [{ "No.": "Tidak ada data" }]);
+  wsK["!cols"] = autoCols(rowsK);
+  XLSX.utils.book_append_sheet(wb, wsK, "Pengembalian");
+
+  save(wb, `laporan-bulanan-${year}-${String(month).padStart(2, "0")}`);
+}

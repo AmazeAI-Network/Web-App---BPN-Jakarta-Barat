@@ -44,7 +44,7 @@ import {
 } from "@/lib/peminjaman-store";
 import { DetailPeminjamanDialog } from "@/components/DetailPeminjamanDialog";
 import { RevisePeminjamanDialog } from "@/components/RevisePeminjamanDialog";
-import { exportRekapitulasiExcel, exportRekapPerStatusExcel } from "@/lib/export-excel";
+import { exportRekapitulasiExcel, exportRekapPerStatusExcel, exportBulananExcel } from "@/lib/export-excel";
 import { useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { deletePeminjaman, updatePeminjamanStatus } from "@/lib/data.functions";
@@ -73,6 +73,9 @@ function MonitoringPage() {
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [kegiatanFilter, setKegiatanFilter] = useState<string>("all");
+  const now = new Date();
+  const [bulanExport, setBulanExport] = useState<string>(String(now.getMonth() + 1));
+  const [tahunExport, setTahunExport] = useState<string>(String(now.getFullYear()));
   const [detail, setDetail] = useState<Peminjaman | null>(null);
   const [toDelete, setToDelete] = useState<Peminjaman | null>(null);
   const [toRevise, setToRevise] = useState<Peminjaman | null>(null);
@@ -302,6 +305,47 @@ function MonitoringPage() {
                 <FileSpreadsheet className="h-4 w-4" />
                 Export Rekap per Status ({items.length})
               </Button>
+              <div className="flex items-center gap-1.5">
+                <Select value={bulanExport} onValueChange={setBulanExport}>
+                  <SelectTrigger className="h-9 w-[130px]">
+                    <SelectValue placeholder="Bulan" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 12 }, (_, i) => (
+                      <SelectItem key={i + 1} value={String(i + 1)}>
+                        {new Date(2000, i, 1).toLocaleDateString("id-ID", { month: "long" })}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={tahunExport} onValueChange={setTahunExport}>
+                  <SelectTrigger className="h-9 w-[100px]">
+                    <SelectValue placeholder="Tahun" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 5 }, (_, i) => now.getFullYear() - i).map((y) => (
+                      <SelectItem key={y} value={String(y)}>
+                        {y}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-9 gap-1.5"
+                  disabled={items.length === 0}
+                  onClick={() => {
+                    exportBulananExcel(items, Number(tahunExport), Number(bulanExport));
+                    toast.success("Laporan bulanan diekspor", {
+                      description: `Periode 1–31, bulan ${bulanExport}/${tahunExport}`,
+                    });
+                  }}
+                >
+                  <FileSpreadsheet className="h-4 w-4" />
+                  Export Bulanan
+                </Button>
+              </div>
             </div>
             <div className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_auto_auto]">
               <div className="relative">

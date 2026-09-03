@@ -49,36 +49,30 @@ function displayPeminjam(p: Peminjaman) {
   return p.peminjam.startsWith("ATENSI — ") ? p.peminjam.replace("ATENSI — ", "") : p.peminjam;
 }
 
+type Mode = "ajukan" | "konfirmasi";
+
 function PengembalianRegisterPage() {
   const { items, loading, changeStatus } = usePeminjaman();
   const { user } = useAuth();
-  // Semua akun non-admin dapat mengajukan pengembalian; admin mengonfirmasi.
-  const isLoket = !!user && user.role !== "admin";
   const [q, setQ] = useState("");
   const [detail, setDetail] = useState<Peminjaman | null>(null);
-  const [confirming, setConfirming] = useState<Peminjaman | null>(null);
+  const [confirming, setConfirming] = useState<{ item: Peminjaman; mode: Mode } | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // Non-admin: ajukan pengembalian dari item yang sedang dipinjam
-  // Admin: konfirmasi pengembalian dari item yang sudah diajukan
-  const targetStatus: StatusPeminjaman = isLoket ? "Sedang Dipinjam" : "Proses Dikembalikan";
-  const nextStatus: StatusPeminjaman = isLoket ? "Proses Dikembalikan" : "Sudah Dikembalikan";
-
-  const list = useMemo(
-    () =>
-      items.filter((p) => {
-        if (p.tipe === "pengamanan") return false;
-        if (p.status !== targetStatus) return false;
-        return true;
-      }),
-    [items, targetStatus],
+  // Semua akun dapat mengajukan pengembalian DAN mengonfirmasi pengembalian.
+  const dipinjam = useMemo(
+    () => items.filter((p) => p.tipe !== "pengamanan" && p.status === "Sedang Dipinjam"),
+    [items],
   );
-
+  const prosesKembali = useMemo(
+    () => items.filter((p) => p.tipe !== "pengamanan" && p.status === "Proses Dikembalikan"),
+    [items],
+  );
 
   const overdueOf = (iso: string) =>
     Math.floor((Date.now() - new Date(iso).getTime()) / (1000 * 60 * 60 * 24));
 
-  const filtered = useMemo(() => {
+  const applySearch = (list: Peminjaman[]) => {
     const k = q.trim().toLowerCase();
     return list
       .filter(
@@ -95,37 +89,147 @@ function PengembalianRegisterPage() {
           p.kegiatan.toLowerCase().includes(k),
       )
       .sort((a, b) => (a.tglPengajuan < b.tglPengajuan ? 1 : -1));
-  }, [list, q]);
+  };
+
+  const filteredDipinjam = useMemo(() => applySearch(dipinjam), [dipinjam, q]);
+  const filteredProses = useMemo(() => applySearch(prosesKembali), [prosesKembali, q]);
 
   const handleConfirm = async () => {
     if (!confirming) return;
+    const nextStatus: StatusPeminjaman =
+      confirming.mode === "ajukan" ? "Proses Dikembalikan" : "Sudah Dikembalikan";
     setBusy(true);
-    await changeStatus(confirming.id, nextStatus, confirming.catatan, user?.name);
+    await changeStatus(confirming.item.id, nextStatus, confirming.item.catatan, user?.name);
     setBusy(false);
     setConfirming(null);
   };
 
-  const cardTitle = isLoket
-    ? `Ajukan Pengembalian (${filtered.length})`
-    : `Konfirmasi Pengembalian dari Loket (${filtered.length})`;
-  const emptyText = isLoket
-    ? "Tidak ada peminjaman yang sedang berjalan."
-    : "Tidak ada permintaan pengembalian dari loket.";
-  const subtitle = isLoket
-    ? "Ajukan pengembalian berkas yang sedang dipinjam"
-    : "Verifikasi pengembalian warkah jalur Register Peminjaman";
+  const renderTable = (
+    list: Peminjaman[],
+    mode: Mode,
+    emptyText: string,
+  ) => {
+    if (loading) {
+      return (
+        <div className="flex items-center justify-center gap-2 p-12 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" /> Memuat...
+        </div>
+      );
+    }
+    if (list.length === 0) {
+      return <p className="p-10 text-center text-sm text-muted-foreground">{emptyText}</p>;
+    }
+    return (
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[1180px] text-sm">
+          <thead className="border-y bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground">
+            <tr>
+              <th className="px-3 py-3 text-left font-semibold">No.</th>
+              <th className="px-3 py-3 text-left font-semibold">Peminjam</th>
+              <th className="px-3 py-3 text-left font-semibold">No. Hak / Jenis</th>
+              <th className="px-3 py-3 text-left font-semibold">Desa / Kecamatan</th>
+              <th className="px-3 py-3 text-left font-semibold">No. SU/Warkah/HT</th>
+              <th className="px-3 py-3 text-left font-semibold">Kegiatan</th>
+              <th className="px-3 py-3 text-left font-semibold">KET</th>
+              <th className="px-3 py-3 text-left font-semibold">Tgl Konfirmasi</th>
+              <th className="px-3 py-3 text-left font-semibold">Lama</th>
+              <th className="px-3 py-3 text-right font-semibold">Aksi</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {list.map((p, idx) => {
+              const days = overdueOf(p.tglPengajuan);
+              return (
+                <tr key={p.id} className="hover:bg-muted/30 align-top">
+                  <td className="px-3 py-3 text-xs text-muted-foreground">{idx + 1}</td>
+                  <td className="px-3 py-3">
+                    <p className="text-sm font-medium">{displayPeminjam(p)}</p>
+                    <p className="font-mono text-[10px] text-muted-foreground">{p.noRegister}</p>
+                  </td>
+                  <td className="px-3 py-3">
+                    <p className="font-mono text-sm font-bold">{p.noHak}</p>
+                    <p className="text-[11px] font-semibold uppercase text-primary">{p.jenisHak}</p>
+                  </td>
+                  <td className="px-3 py-3">
+                    <p className="text-sm">{p.desa || "—"}</p>
+                    <p className="text-[11px] text-muted-foreground">{p.kecamatan || ""}</p>
+                  </td>
+                  <td className="px-3 py-3 font-mono text-[11px] text-muted-foreground">
+                    <div>{p.noSu || "—"}</div>
+                    <div>{p.noWarkah || "—"}</div>
+                    <div>{p.noHt || "—"}</div>
+                  </td>
+                  <td className="px-3 py-3 text-xs text-muted-foreground">{p.kegiatan}</td>
+                  <td className="px-3 py-3 text-[11px] font-semibold text-primary">{p.jenisPeminjaman || "—"}</td>
+                  <td className="px-3 py-3 text-xs text-muted-foreground">{fmtDate(p.tglKonfirmasi)}</td>
+                  <td className="px-3 py-3">
+                    <span
+                      className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${
+                        days > 7
+                          ? "bg-destructive/10 text-destructive border border-destructive/30"
+                          : "bg-muted text-muted-foreground border border-border"
+                      }`}
+                    >
+                      {days} hari
+                    </span>
+                  </td>
+                  <td className="px-3 py-3 text-right">
+                    <div className="flex items-center justify-end gap-1.5">
+                      <Button size="sm" variant="outline" className="h-8 gap-1.5" onClick={() => setDetail(p)}>
+                        <Eye className="h-3.5 w-3.5" /> Detail
+                      </Button>
+                      {mode === "ajukan" ? (
+                        <Button
+                          size="sm"
+                          className="h-8 gap-1.5 bg-warning text-warning-foreground hover:bg-warning/90"
+                          onClick={() => setConfirming({ item: p, mode: "ajukan" })}
+                        >
+                          <PackageCheck className="h-3.5 w-3.5" /> Ajukan Pengembalian
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          className="h-8 gap-1.5 bg-success text-success-foreground hover:bg-success/90"
+                          onClick={() => setConfirming({ item: p, mode: "konfirmasi" })}
+                        >
+                          <CheckCircle2 className="h-3.5 w-3.5" /> Konfirmasi Pengembalian
+                        </Button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
 
   return (
-    <AppShell title="Pengembalian" subtitle={subtitle}>
+    <AppShell title="Pengembalian" subtitle="Ajukan dan konfirmasi pengembalian warkah — dapat digunakan semua akun">
       <div className="space-y-6">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Card className="shadow-card">
             <CardContent className="flex items-center justify-between p-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  {isLoket ? "Sedang Dipinjam" : "Proses Dikembalikan"}
+                  Sedang Dipinjam
                 </p>
-                <p className="mt-1 text-2xl font-bold text-foreground">{list.length}</p>
+                <p className="mt-1 text-2xl font-bold text-foreground">{dipinjam.length}</p>
+              </div>
+              <div className="rounded-lg bg-primary/10 p-2.5 text-primary">
+                <PackageCheck className="h-5 w-5" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="shadow-card">
+            <CardContent className="flex items-center justify-between p-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Proses Dikembalikan
+                </p>
+                <p className="mt-1 text-2xl font-bold text-foreground">{prosesKembali.length}</p>
               </div>
               <div className="rounded-lg bg-warning/10 p-2.5 text-warning">
                 <Clock className="h-5 w-5" />
@@ -139,7 +243,7 @@ function PengembalianRegisterPage() {
                   Terlambat (&gt;7 hari)
                 </p>
                 <p className="mt-1 text-2xl font-bold text-foreground">
-                  {list.filter((p) => overdueOf(p.tglPengajuan) > 7).length}
+                  {dipinjam.filter((p) => overdueOf(p.tglPengajuan) > 7).length}
                 </p>
               </div>
               <div className="rounded-lg bg-destructive/10 p-2.5 text-destructive">
@@ -162,94 +266,24 @@ function PengembalianRegisterPage() {
         <Card className="shadow-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
-              <Undo2 className="h-5 w-5 text-primary" />
-              {cardTitle}
+              <PackageCheck className="h-5 w-5 text-warning" />
+              Ajukan Pengembalian ({filteredDipinjam.length})
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            {loading ? (
-              <div className="flex items-center justify-center gap-2 p-12 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" /> Memuat...
-              </div>
-            ) : filtered.length === 0 ? (
-              <p className="p-10 text-center text-sm text-muted-foreground">{emptyText}</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[1180px] text-sm">
-                  <thead className="border-y bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground">
-                    <tr>
-                      <th className="px-3 py-3 text-left font-semibold">No.</th>
-                      <th className="px-3 py-3 text-left font-semibold">Peminjam</th>
-                      <th className="px-3 py-3 text-left font-semibold">No. Hak / Jenis</th>
-                      <th className="px-3 py-3 text-left font-semibold">Desa / Kecamatan</th>
-                      <th className="px-3 py-3 text-left font-semibold">No. SU/Warkah/HT</th>
-                      <th className="px-3 py-3 text-left font-semibold">Kegiatan</th>
-                      <th className="px-3 py-3 text-left font-semibold">KET</th>
-                      <th className="px-3 py-3 text-left font-semibold">Tgl Konfirmasi</th>
-                      <th className="px-3 py-3 text-left font-semibold">Lama</th>
-                      <th className="px-3 py-3 text-right font-semibold">Aksi</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {filtered.map((p, idx) => {
-                      const days = overdueOf(p.tglPengajuan);
-                      return (
-                        <tr key={p.id} className="hover:bg-muted/30 align-top">
-                          <td className="px-3 py-3 text-xs text-muted-foreground">{idx + 1}</td>
-                          <td className="px-3 py-3">
-                            <p className="text-sm font-medium">{displayPeminjam(p)}</p>
-                            <p className="font-mono text-[10px] text-muted-foreground">{p.noRegister}</p>
-                          </td>
-                          <td className="px-3 py-3">
-                            <p className="font-mono text-sm font-bold">{p.noHak}</p>
-                            <p className="text-[11px] font-semibold uppercase text-primary">{p.jenisHak}</p>
-                          </td>
-                          <td className="px-3 py-3">
-                            <p className="text-sm">{p.desa || "—"}</p>
-                            <p className="text-[11px] text-muted-foreground">{p.kecamatan || ""}</p>
-                          </td>
-                          <td className="px-3 py-3 font-mono text-[11px] text-muted-foreground">
-                            <div>{p.noSu || "—"}</div>
-                            <div>{p.noWarkah || "—"}</div>
-                            <div>{p.noHt || "—"}</div>
-                          </td>
-                          <td className="px-3 py-3 text-xs text-muted-foreground">{p.kegiatan}</td>
-                          <td className="px-3 py-3 text-[11px] font-semibold text-primary">{p.jenisPeminjaman || "—"}</td>
-                          <td className="px-3 py-3 text-xs text-muted-foreground">{fmtDate(p.tglKonfirmasi)}</td>
-                          <td className="px-3 py-3">
-                            <span
-                              className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${
-                                days > 7
-                                  ? "bg-destructive/10 text-destructive border border-destructive/30"
-                                  : "bg-muted text-muted-foreground border border-border"
-                              }`}
-                            >
-                              {days} hari
-                            </span>
-                          </td>
-                          <td className="px-3 py-3 text-right">
-                            <div className="flex items-center justify-end gap-1.5">
-                              <Button size="sm" variant="outline" className="h-8 gap-1.5" onClick={() => setDetail(p)}>
-                                <Eye className="h-3.5 w-3.5" /> Detail
-                              </Button>
-                              {isLoket ? (
-                                <Button size="sm" className="h-8 gap-1.5 bg-warning text-warning-foreground hover:bg-warning/90" onClick={() => setConfirming(p)}>
-                                  <PackageCheck className="h-3.5 w-3.5" /> Ajukan Pengembalian
-                                </Button>
-                              ) : (
-                                <Button size="sm" className="h-8 gap-1.5 bg-success text-success-foreground hover:bg-success/90" onClick={() => setConfirming(p)}>
-                                  <CheckCircle2 className="h-3.5 w-3.5" /> Konfirmasi Pengembalian
-                                </Button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            {renderTable(filteredDipinjam, "ajukan", "Tidak ada peminjaman yang sedang berjalan.")}
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Undo2 className="h-5 w-5 text-success" />
+              Konfirmasi Pengembalian ({filteredProses.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            {renderTable(filteredProses, "konfirmasi", "Tidak ada permintaan pengembalian yang menunggu konfirmasi.")}
           </CardContent>
         </Card>
       </div>
@@ -260,15 +294,15 @@ function PengembalianRegisterPage() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              {isLoket ? (
+              {confirming?.mode === "ajukan" ? (
                 <><PackageCheck className="h-5 w-5 text-warning" /> Ajukan Pengembalian</>
               ) : (
                 <><CheckCircle2 className="h-5 w-5 text-success" /> Konfirmasi Pengembalian</>
               )}
             </DialogTitle>
             <DialogDescription>
-              {isLoket ? (
-                <>Apakah Peminjaman ini sudah selesai dipinjam? Status akan diubah menjadi <strong>Proses Dikembalikan</strong> dan menunggu konfirmasi admin.</>
+              {confirming?.mode === "ajukan" ? (
+                <>Apakah Peminjaman ini sudah selesai dipinjam? Status akan diubah menjadi <strong>Proses Dikembalikan</strong> dan menunggu konfirmasi.</>
               ) : (
                 <>Data Peminjaman akan ditandai sebagai <strong>Sudah Dikembalikan</strong>. Notifikasi email akan dikirim ke peminjam.</>
               )}
@@ -278,32 +312,32 @@ function PengembalianRegisterPage() {
             <div className="space-y-3">
               <div className="rounded-lg border bg-muted/30 p-3 text-sm">
                 <p className="font-mono text-[11px] font-semibold uppercase text-primary">
-                  {confirming.noRegister}
+                  {confirming.item.noRegister}
                 </p>
-                <p className="mt-0.5 font-semibold">{displayPeminjam(confirming)}</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">{confirming.kegiatan}</p>
+                <p className="mt-0.5 font-semibold">{displayPeminjam(confirming.item)}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">{confirming.item.kegiatan}</p>
               </div>
               <div className="rounded-lg border bg-muted/20 p-3 font-mono text-[12px] leading-relaxed">
-                <DetailLine label="No. Hak" value={`${confirming.noHak || "—"} (${confirming.jenisHak || "—"})`} />
-                <DetailLine label="Desa" value={confirming.desa || "—"} />
-                <DetailLine label="Kecamatan" value={confirming.kecamatan || "—"} />
-                <DetailLine label="No. SU" value={confirming.noSu || "—"} />
-                <DetailLine label="No. Warkah" value={confirming.noWarkah || "—"} />
-                <DetailLine label="No. HT" value={confirming.noHt || "—"} />
-                <DetailLine label="Tgl Pengajuan" value={fmtDate(confirming.tglPengajuan)} />
-                <DetailLine label="Tgl Konfirmasi" value={fmtDate(confirming.tglKonfirmasi)} />
-                <DetailLine label="Email" value={confirming.email || "—"} />
+                <DetailLine label="No. Hak" value={`${confirming.item.noHak || "—"} (${confirming.item.jenisHak || "—"})`} />
+                <DetailLine label="Desa" value={confirming.item.desa || "—"} />
+                <DetailLine label="Kecamatan" value={confirming.item.kecamatan || "—"} />
+                <DetailLine label="No. SU" value={confirming.item.noSu || "—"} />
+                <DetailLine label="No. Warkah" value={confirming.item.noWarkah || "—"} />
+                <DetailLine label="No. HT" value={confirming.item.noHt || "—"} />
+                <DetailLine label="Tgl Pengajuan" value={fmtDate(confirming.item.tglPengajuan)} />
+                <DetailLine label="Tgl Konfirmasi" value={fmtDate(confirming.item.tglKonfirmasi)} />
+                <DetailLine label="Email" value={confirming.item.email || "—"} />
               </div>
-              {confirming.catatan && (
+              {confirming.item.catatan && (
                 <div className="rounded-lg border border-success/30 bg-success/5 p-3 text-xs">
                   <p className="font-semibold text-success">Catatan:</p>
-                  <p className="mt-1 italic">"{confirming.catatan}"</p>
+                  <p className="mt-1 italic">"{confirming.item.catatan}"</p>
                 </div>
               )}
             </div>
           )}
           <DialogFooter className="gap-2">
-            {isLoket ? (
+            {confirming?.mode === "ajukan" ? (
               <Button
                 className="w-full gap-1.5 bg-warning text-warning-foreground hover:bg-warning/90"
                 onClick={handleConfirm}
