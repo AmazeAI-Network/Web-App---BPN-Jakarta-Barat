@@ -1,7 +1,7 @@
 // Client-side wrappers that call the Laravel backend.
 // Names and call-site signatures preserved for compatibility with existing
 // callers that use either `fn()` or `fn({ data: ... })`.
-import { api, setToken, unwrap } from "@/lib/api";
+import { api, getToken, setToken, unwrap } from "@/lib/api";
 
 export type UserRole = "admin" | "petugas_loket" | "verifikator" | "verifikasi";
 
@@ -46,6 +46,10 @@ export async function getCurrentSession(): Promise<
   | { authenticated: false }
   | { authenticated: true; username: string; role: UserRole }
 > {
+  if (!getToken()) {
+    return { authenticated: false };
+  }
+
   const res = await api
     .get<{
       authenticated: boolean;

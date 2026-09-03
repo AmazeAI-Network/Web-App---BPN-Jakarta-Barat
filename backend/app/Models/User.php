@@ -17,10 +17,11 @@ class User extends Authenticatable
     protected $fillable = [
         'username', 'name', 'nip', 'email', 'unit_kerja',
         'role', 'role_label', 'active', 'password', 'last_login',
+        'session_token', 'session_expires_at',
     ];
 
     protected $hidden = [
-        'password', 'remember_token',
+        'password', 'remember_token', 'session_token',
     ];
 
     protected function casts(): array
@@ -29,6 +30,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'active' => 'boolean',
             'last_login' => 'datetime',
+            'session_expires_at' => 'datetime',
         ];
     }
 

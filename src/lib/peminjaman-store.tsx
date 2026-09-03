@@ -229,19 +229,24 @@ export function PeminjamanProvider({ children }: { children: ReactNode }) {
 
   const { user, isReady } = useAuth();
 
+  const inflightRef = useRef(false);
   const refresh = useCallback(async () => {
     if (!user) {
       setItems([]);
       setLoading(false);
       return;
     }
+    // Cegah request bertumpuk kalau jaringan/VPS lambat.
+    if (inflightRef.current) return;
+    inflightRef.current = true;
     try {
       const data = await listPeminjaman();
       setItems((data as DbRow[]).map(rowToPeminjaman));
     } catch (e) {
       console.error("Failed to load peminjaman", e);
-      // Silent: avoid noisy toasts during the 5s polling loop / when signed out.
+      // Silent: avoid noisy toasts during the polling loop / when signed out.
     } finally {
+      inflightRef.current = false;
       setLoading(false);
     }
   }, [user]);
@@ -254,9 +259,41 @@ export function PeminjamanProvider({ children }: { children: ReactNode }) {
       return;
     }
     void refresh();
-    // Polling tiap 5 detik supaya semua role tetap melihat update.
-    const id = setInterval(() => void refresh(), 5000);
-    return () => clearInterval(id);
+    // Polling adaptif: 20 dtk saat tab aktif, berhenti saat tab tersembunyi,
+    // dan langsung refresh ketika tab kembali fokus. Mengurangi beban VPS &
+    // menghilangkan lag akibat request menumpuk.
+    let id: ReturnType<typeof setInterval> | null = null;
+    const start = () => {
+      if (id != null) return;
+      id = setInterval(() => {
+        if (typeof document !== "undefined" && document.hidden) return;
+        void refresh();
+      }, 20000);
+    };
+    const stop = () => {
+      if (id != null) {
+        clearInterval(id);
+        id = null;
+      }
+    };
+    const onVisibility = () => {
+      if (document.hidden) {
+        stop();
+      } else {
+        void refresh();
+        start();
+      }
+    };
+    start();
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", onVisibility);
+    }
+    return () => {
+      stop();
+      if (typeof document !== "undefined") {
+        document.removeEventListener("visibilitychange", onVisibility);
+      }
+    };
   }, [refresh, user, isReady]);
 
 
@@ -289,9 +326,14 @@ export function PeminjamanProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const itemsRef = useRef(items);
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
+
   const changeStatus = useCallback(
     async (id: string, next: StatusPeminjaman, catatan?: string, confirmedBy?: string) => {
-      const target = items.find((p) => p.id === id);
+      const target = itemsRef.current.find((p) => p.id === id);
       if (!target) return;
 
       const nowTs = nowIso();
@@ -383,7 +425,7 @@ export function PeminjamanProvider({ children }: { children: ReactNode }) {
         ...ns,
       ]);
     },
-    [items, pushBrowserNotification]
+    [pushBrowserNotification]
   );
 
   const markAllRead = useCallback(() => {

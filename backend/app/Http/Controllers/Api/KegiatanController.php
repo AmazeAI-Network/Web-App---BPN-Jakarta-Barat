@@ -23,13 +23,14 @@ class KegiatanController extends Controller
     public function update(Request $r, string $id)
     {
         $data = $this->validateData($r);
-        Kegiatan::where('id', $id)->update($data);
+        $kegiatan = Kegiatan::findOrFail($id);
+        $kegiatan->update($data);
         return response()->json(['ok' => true, 'id' => $id]);
     }
 
     public function destroy(string $id)
     {
-        Kegiatan::where('id', $id)->delete();
+        Kegiatan::findOrFail($id)->delete();
         return response()->json(['ok' => true]);
     }
 

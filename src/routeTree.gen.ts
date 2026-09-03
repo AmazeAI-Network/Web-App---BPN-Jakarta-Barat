@@ -24,7 +24,9 @@ import { Route as MonitoringPengamananRouteImport } from './routes/monitoring_.p
 import { Route as MasterPeminjamRouteImport } from './routes/master.peminjam'
 import { Route as MasterKegiatanRouteImport } from './routes/master.kegiatan'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
+import { Route as AdminSchedulerRouteImport } from './routes/admin.scheduler'
 import { Route as AdminRolesRouteImport } from './routes/admin.roles'
+import { Route as AdminRecoveryRouteImport } from './routes/admin.recovery'
 
 const PengembalianRoute = PengembalianRouteImport.update({
   id: '/pengembalian',
@@ -101,9 +103,19 @@ const AdminUsersRoute = AdminUsersRouteImport.update({
   path: '/admin/users',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminSchedulerRoute = AdminSchedulerRouteImport.update({
+  id: '/admin/scheduler',
+  path: '/admin/scheduler',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminRolesRoute = AdminRolesRouteImport.update({
   id: '/admin/roles',
   path: '/admin/roles',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRecoveryRoute = AdminRecoveryRouteImport.update({
+  id: '/admin/recovery',
+  path: '/admin/recovery',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -112,7 +124,9 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/monitoring': typeof MonitoringRoute
   '/pengembalian': typeof PengembalianRoute
+  '/admin/recovery': typeof AdminRecoveryRoute
   '/admin/roles': typeof AdminRolesRoute
+  '/admin/scheduler': typeof AdminSchedulerRoute
   '/admin/users': typeof AdminUsersRoute
   '/master/kegiatan': typeof MasterKegiatanRoute
   '/master/peminjam': typeof MasterPeminjamRoute
@@ -130,7 +144,9 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/monitoring': typeof MonitoringRoute
   '/pengembalian': typeof PengembalianRoute
+  '/admin/recovery': typeof AdminRecoveryRoute
   '/admin/roles': typeof AdminRolesRoute
+  '/admin/scheduler': typeof AdminSchedulerRoute
   '/admin/users': typeof AdminUsersRoute
   '/master/kegiatan': typeof MasterKegiatanRoute
   '/master/peminjam': typeof MasterPeminjamRoute
@@ -149,7 +165,9 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/monitoring': typeof MonitoringRoute
   '/pengembalian': typeof PengembalianRoute
+  '/admin/recovery': typeof AdminRecoveryRoute
   '/admin/roles': typeof AdminRolesRoute
+  '/admin/scheduler': typeof AdminSchedulerRoute
   '/admin/users': typeof AdminUsersRoute
   '/master/kegiatan': typeof MasterKegiatanRoute
   '/master/peminjam': typeof MasterPeminjamRoute
@@ -169,7 +187,9 @@ export interface FileRouteTypes {
     | '/login'
     | '/monitoring'
     | '/pengembalian'
+    | '/admin/recovery'
     | '/admin/roles'
+    | '/admin/scheduler'
     | '/admin/users'
     | '/master/kegiatan'
     | '/master/peminjam'
@@ -187,7 +207,9 @@ export interface FileRouteTypes {
     | '/login'
     | '/monitoring'
     | '/pengembalian'
+    | '/admin/recovery'
     | '/admin/roles'
+    | '/admin/scheduler'
     | '/admin/users'
     | '/master/kegiatan'
     | '/master/peminjam'
@@ -205,7 +227,9 @@ export interface FileRouteTypes {
     | '/login'
     | '/monitoring'
     | '/pengembalian'
+    | '/admin/recovery'
     | '/admin/roles'
+    | '/admin/scheduler'
     | '/admin/users'
     | '/master/kegiatan'
     | '/master/peminjam'
@@ -224,7 +248,9 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   MonitoringRoute: typeof MonitoringRoute
   PengembalianRoute: typeof PengembalianRoute
+  AdminRecoveryRoute: typeof AdminRecoveryRoute
   AdminRolesRoute: typeof AdminRolesRoute
+  AdminSchedulerRoute: typeof AdminSchedulerRoute
   AdminUsersRoute: typeof AdminUsersRoute
   MasterKegiatanRoute: typeof MasterKegiatanRoute
   MasterPeminjamRoute: typeof MasterPeminjamRoute
@@ -345,11 +371,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUsersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/scheduler': {
+      id: '/admin/scheduler'
+      path: '/admin/scheduler'
+      fullPath: '/admin/scheduler'
+      preLoaderRoute: typeof AdminSchedulerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/roles': {
       id: '/admin/roles'
       path: '/admin/roles'
       fullPath: '/admin/roles'
       preLoaderRoute: typeof AdminRolesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/recovery': {
+      id: '/admin/recovery'
+      path: '/admin/recovery'
+      fullPath: '/admin/recovery'
+      preLoaderRoute: typeof AdminRecoveryRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -360,7 +400,9 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   MonitoringRoute: MonitoringRoute,
   PengembalianRoute: PengembalianRoute,
+  AdminRecoveryRoute: AdminRecoveryRoute,
   AdminRolesRoute: AdminRolesRoute,
+  AdminSchedulerRoute: AdminSchedulerRoute,
   AdminUsersRoute: AdminUsersRoute,
   MasterKegiatanRoute: MasterKegiatanRoute,
   MasterPeminjamRoute: MasterPeminjamRoute,

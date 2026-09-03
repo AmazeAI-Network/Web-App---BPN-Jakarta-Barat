@@ -138,3 +138,29 @@ export async function deletePeminjamMaster(
   await api.del(`/peminjam/${id}`);
   return { ok: true };
 }
+
+// ---------------- Revisi data peminjaman ----------------
+
+export type PeminjamanUpdate = Partial<{
+  peminjam: string;
+  email: string | null;
+  kegiatan: string;
+  no_hak: string;
+  jenis_hak: string;
+  desa: string;
+  kecamatan: string;
+  no_su: string | null;
+  no_warkah: string | null;
+  no_ht: string | null;
+  jenis_peminjaman: string | null;
+  catatan: string | null;
+  status: string;
+}>;
+
+export async function updatePeminjaman(
+  id: string,
+  fields: PeminjamanUpdate,
+): Promise<{ ok: true }> {
+  await api.put(`/peminjaman/${id}`, fields);
+  return { ok: true };
+}

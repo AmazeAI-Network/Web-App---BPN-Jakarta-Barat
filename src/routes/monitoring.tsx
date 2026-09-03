@@ -31,6 +31,8 @@ import {
   ArrowUp,
   ArrowDown,
   ArrowUpDown,
+  Pencil,
+  FileSpreadsheet,
 } from "lucide-react";
 import {
   usePeminjaman,
@@ -41,6 +43,8 @@ import {
   type Peminjaman,
 } from "@/lib/peminjaman-store";
 import { DetailPeminjamanDialog } from "@/components/DetailPeminjamanDialog";
+import { RevisePeminjamanDialog } from "@/components/RevisePeminjamanDialog";
+import { exportRekapitulasiExcel, exportRekapPerStatusExcel } from "@/lib/export-excel";
 import { useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { deletePeminjaman, updatePeminjamanStatus } from "@/lib/data.functions";
@@ -71,6 +75,7 @@ function MonitoringPage() {
   const [kegiatanFilter, setKegiatanFilter] = useState<string>("all");
   const [detail, setDetail] = useState<Peminjaman | null>(null);
   const [toDelete, setToDelete] = useState<Peminjaman | null>(null);
+  const [toRevise, setToRevise] = useState<Peminjaman | null>(null);
   const [toRevert, setToRevert] = useState<Peminjaman | null>(null);
   const [toArchive, setToArchive] = useState<Peminjaman | null>(null);
   const [busy, setBusy] = useState(false);
@@ -266,6 +271,38 @@ function MonitoringPage() {
                 </span>
               )}
             </CardTitle>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-9 gap-1.5"
+                disabled={filtered.length === 0}
+                onClick={() => {
+                  exportRekapitulasiExcel(filtered);
+                  toast.success("Rekapitulasi diekspor", {
+                    description: `${filtered.length} baris ke file Excel`,
+                  });
+                }}
+              >
+                <FileSpreadsheet className="h-4 w-4" />
+                Export Excel ({filtered.length})
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-9 gap-1.5"
+                disabled={items.length === 0}
+                onClick={() => {
+                  exportRekapPerStatusExcel(items);
+                  toast.success("Rekap per status diekspor", {
+                    description: `${items.length} baris, dipisah per status`,
+                  });
+                }}
+              >
+                <FileSpreadsheet className="h-4 w-4" />
+                Export Rekap per Status ({items.length})
+              </Button>
+            </div>
             <div className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_auto_auto]">
               <div className="relative">
                 <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -392,6 +429,15 @@ function MonitoringPage() {
                                   size="sm"
                                   variant="outline"
                                   className="h-8 gap-1.5"
+                                  onClick={() => setToRevise(p)}
+                                  title="Revisi data"
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-8 gap-1.5"
                                   onClick={() => setToRevert(p)}
                                   title="Kembalikan ke Proses"
                                 >
@@ -403,6 +449,29 @@ function MonitoringPage() {
                                   className="h-8 gap-1.5 text-destructive hover:bg-destructive/10 hover:text-destructive"
                                   onClick={() => setToDelete(p)}
                                   title="Hapus data"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </>
+                            )}
+                            {!isAdmin && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-8 gap-1.5"
+                                  onClick={() => setToRevise(p)}
+                                  title="Revisi data yang sudah disubmit"
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                  Revisi
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-8 gap-1.5 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                  onClick={() => setToDelete(p)}
+                                  title="Batalkan / hapus data yang Anda input"
                                 >
                                   <Trash2 className="h-3.5 w-3.5" />
                                 </Button>
@@ -459,6 +528,12 @@ function MonitoringPage() {
       </div>
 
       <DetailPeminjamanDialog item={detail} onClose={() => setDetail(null)} />
+
+      <RevisePeminjamanDialog
+        item={toRevise}
+        onClose={() => setToRevise(null)}
+        onSaved={() => void refresh()}
+      />
 
       {/* Hapus */}
       <Dialog open={!!toDelete} onOpenChange={(o) => !busy && !o && setToDelete(null)}>

@@ -35,6 +35,7 @@ function LoginPage() {
     }
   }, [isReady, user, navigate]);
 
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!username.trim() || !password) {
@@ -56,7 +57,6 @@ function LoginPage() {
       setLoading(false);
     }
   };
-
 
 
 

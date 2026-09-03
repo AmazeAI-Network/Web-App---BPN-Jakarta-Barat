@@ -7,6 +7,10 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
+        if (Schema::hasTable('peminjaman')) {
+            return;
+        }
+
         Schema::create('peminjaman', function (Blueprint $t) {
             $t->uuid('id')->primary();
             $t->string('no_register', 64);
@@ -20,6 +24,8 @@ return new class extends Migration {
             $t->string('no_su', 64)->nullable();
             $t->string('no_warkah', 64)->nullable();
             $t->string('no_ht', 64)->nullable();
+            $t->string('no_berkas_pnbp', 64)->nullable();
+            $t->string('tahun', 16)->nullable();
             $t->string('jenis_peminjaman', 64)->nullable();
             $t->string('file_pengamanan_url', 512)->nullable();
             $t->string('status', 64);

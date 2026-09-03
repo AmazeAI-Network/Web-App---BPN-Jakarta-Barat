@@ -78,8 +78,7 @@ const emptyRow = (): WarkahRow => ({
 
 
 // Validation schema — Buku Tanah, Surat Ukur & Warkah
-// Aturan: Desa & Kecamatan WAJIB. Minimal salah satu dari No.Hak / No.SU / No.Warkah terisi.
-// Jenis Hak hanya wajib bila No.Hak terisi. No.HT selalu opsional.
+// Aturan: HANYA Desa & Kecamatan yang WAJIB. Semua nomor (Hak/SU/Warkah/HT) opsional.
 const htEntrySchema = z.object({
   no: z.string().trim().max(50),
   tahun: z.string().regex(/^(\d{4})?$/, "Tahun harus 4 digit"),
@@ -98,25 +97,8 @@ const rowSchema = z
     htList: z.array(htEntrySchema).default([]),
   })
   .superRefine((v, ctx) => {
-    const noHak = v.noHak.trim();
     const noSu = v.noSu.trim();
     const noWarkah = v.noWarkah.trim();
-
-    if (!noHak && !noSu && !noWarkah) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["noHak"],
-        message: "Isi minimal salah satu: No. Hak, No. SU, atau No. Warkah",
-      });
-    }
-
-    if (noHak && !v.jenisHak.trim()) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["jenisHak"],
-        message: "Jenis Hak wajib bila No. Hak diisi",
-      });
-    }
 
     const pairs: [string, string, string][] = [
       [noSu, v.tahunSu.trim(), "No. SU"],

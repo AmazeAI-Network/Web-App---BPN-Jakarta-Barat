@@ -44,6 +44,7 @@ export const KELURAHAN_PER_KECAMATAN: Record<string, string[]> = {
   ],
   "Kebon Jeruk": [
     "Duri Kepa",
+    "Kedoya",
     "Kedoya Selatan",
     "Kedoya Utara",
     "Kebon Jeruk",

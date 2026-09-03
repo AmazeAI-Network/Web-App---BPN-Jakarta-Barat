@@ -12,13 +12,20 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
+        if (is_file(database_path('exports/peminjaman.csv'))) {
+            $this->call(ImportSupabaseSnapshotSeeder::class);
+            return;
+        }
+
         $users = [
             ['admin', 'Administrator', 'admin', 'Administrator', 'admin@bpnjakbar.id'],
             ['petugas', 'Petugas Loket', 'petugas_loket', 'Petugas Loket', 'petugas@bpnjakbar.id'],
             ['informasi', 'Informasi', 'verifikator', 'Informasi', 'informasi@bpnjakbar.id'],
         ];
+        $credentials = [];
         foreach ($users as [$u, $name, $role, $label, $email]) {
-            User::updateOrCreate(['username' => $u], [
+            $existing = User::where('username', $u)->first();
+            $attributes = [
                 'name' => $name,
                 'nip' => '',
                 'email' => $email,
@@ -26,8 +33,18 @@ class DatabaseSeeder extends Seeder
                 'role' => $role,
                 'role_label' => $label,
                 'active' => true,
-                'password' => Hash::make('admin123'),
-            ]);
+            ];
+
+            if (! $existing) {
+                $password = (string) env('ADMIN_BOOTSTRAP_PASSWORD', '');
+                if ($password === '') {
+                    $password = \Illuminate\Support\Str::password(20);
+                }
+                $attributes['password'] = Hash::make($password);
+                $credentials[$u] = $password;
+            }
+
+            User::updateOrCreate(['username' => $u], $attributes);
         }
 
         foreach (['Pengukuran', 'Pengecekan', 'Peralihan Hak', 'Roya', 'Pemasangan HT'] as $n) {
@@ -44,6 +61,9 @@ class DatabaseSeeder extends Seeder
             ]);
         }
 
-        $this->command->info('Seeded: admin / petugas / informasi  (password: admin123)');
+        foreach ($credentials as $username => $password) {
+            $this->command->warn("Akun baru '{$username}' dibuat dengan password sekali pakai: {$password}");
+        }
+        $this->command->info('Segera ganti password akun-akun tersebut setelah login pertama.');
     }
 }

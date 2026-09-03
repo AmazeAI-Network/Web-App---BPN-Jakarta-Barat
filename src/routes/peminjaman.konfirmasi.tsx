@@ -85,20 +85,29 @@ function KonfirmasiPage() {
   const handleKirimKonfirmasi = async () => {
     if (checkedItems.length === 0) return;
     setSending(true);
-    for (const p of checkedItems) {
-      await changeStatus(
-        p.id,
-        "Sedang Dipinjam",
-        `Dikonfirmasi & diambil oleh peminjam — ${user?.name ?? "Atasan"}`,
-        user?.name ?? "Atasan",
-      );
-    }
-    setSending(false);
-    toast.success(`${checkedItems.length} konfirmasi terkirim`, {
-      description: "Notifikasi telah dikirim ke peminjam.",
-    });
-    setChecked(new Set());
+    // Tutup dialog dulu supaya UI terasa responsif; proses jalan di background paralel.
     setConfirmOpen(false);
+    const snapshot = checkedItems;
+    setChecked(new Set());
+    try {
+      await Promise.all(
+        snapshot.map((p) =>
+          changeStatus(
+            p.id,
+            "Sedang Dipinjam",
+            `Dikonfirmasi & diambil oleh peminjam — ${user?.name ?? "Atasan"}`,
+            user?.name ?? "Atasan",
+          ),
+        ),
+      );
+      toast.success(`${snapshot.length} konfirmasi terkirim`, {
+        description: "Notifikasi telah dikirim ke peminjam.",
+      });
+    } catch (e) {
+      toast.error("Sebagian konfirmasi gagal", { description: (e as Error).message });
+    } finally {
+      setSending(false);
+    }
   };
 
   const overdueDays = (iso: string) =>

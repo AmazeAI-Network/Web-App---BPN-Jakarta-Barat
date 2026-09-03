@@ -52,14 +52,15 @@ function displayPeminjam(p: Peminjaman) {
 function PengembalianRegisterPage() {
   const { items, loading, changeStatus } = usePeminjaman();
   const { user } = useAuth();
-  const isLoket = user?.role === "petugas_loket";
+  // Semua akun non-admin dapat mengajukan pengembalian; admin mengonfirmasi.
+  const isLoket = !!user && user.role !== "admin";
   const [q, setQ] = useState("");
   const [detail, setDetail] = useState<Peminjaman | null>(null);
   const [confirming, setConfirming] = useState<Peminjaman | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // Loket: ajukan pengembalian dari item yang sedang dipinjam
-  // Admin: konfirmasi pengembalian dari item yang sudah diajukan loket
+  // Non-admin: ajukan pengembalian dari item yang sedang dipinjam
+  // Admin: konfirmasi pengembalian dari item yang sudah diajukan
   const targetStatus: StatusPeminjaman = isLoket ? "Sedang Dipinjam" : "Proses Dikembalikan";
   const nextStatus: StatusPeminjaman = isLoket ? "Proses Dikembalikan" : "Sudah Dikembalikan";
 
@@ -68,15 +69,9 @@ function PengembalianRegisterPage() {
       items.filter((p) => {
         if (p.tipe === "pengamanan") return false;
         if (p.status !== targetStatus) return false;
-        // Item yang diregister oleh Admin diarahkan ke menu khusus
-        // /pengembalian/admin — jangan tampilkan di alur Loket.
-        if (isLoket && p.createdByRole === "admin") return false;
-        // Loket hanya boleh melihat pengajuan miliknya sendiri agar
-        // data tidak tercampur antar akun loket.
-        if (isLoket && p.createdBy !== user?.username) return false;
         return true;
       }),
-    [items, targetStatus, isLoket, user?.username],
+    [items, targetStatus],
   );
 
 

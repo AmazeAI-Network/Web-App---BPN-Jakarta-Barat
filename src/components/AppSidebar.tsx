@@ -15,6 +15,8 @@ import {
   ShieldAlert,
   Briefcase,
   ClipboardList,
+  HardDrive,
+  CalendarClock,
 } from "lucide-react";
 import { useState } from "react";
 import logoBpn from "@/assets/logo-bpn.png";
@@ -42,9 +44,9 @@ const mainItems: NavItem[] = [
   { label: "Peminjaman Verifikasi", to: "/peminjaman/verifikasi", icon: CheckCircle2, roles: ["admin"] },
   { label: "Peminjaman Konfirmasi", to: "/peminjaman/konfirmasi", icon: ClipboardCheck, roles: ["admin"] },
   { label: "Peminjaman Informasi", to: "/peminjaman/informasi", icon: BookOpen, roles: ["admin", "verifikator"] },
-  { label: "Pengembalian", to: "/pengembalian", icon: Undo2, roles: ["admin", "petugas_loket"] },
+  { label: "Pengembalian", to: "/pengembalian", icon: Undo2, roles: ALL },
   { label: "Pengembalian Admin", to: "/pengembalian/admin", icon: Undo2, roles: ["admin"] },
-  { label: "Monitoring Peminjaman", to: "/monitoring", icon: Activity, roles: ["admin", "petugas_loket"] },
+  { label: "Monitoring Peminjaman", to: "/monitoring", icon: Activity, roles: ALL },
 ];
 
 const groups: NavGroup[] = [
@@ -65,6 +67,8 @@ const groups: NavGroup[] = [
     items: [
       { label: "Pengguna", to: "/admin/users", icon: UserCog, roles: ["admin"] },
       { label: "Hak Akses", to: "/admin/roles", icon: ShieldAlert, roles: ["admin"] },
+      { label: "Recovery & Backup", to: "/admin/recovery", icon: HardDrive, roles: ["admin"] },
+      { label: "Status Scheduler", to: "/admin/scheduler", icon: CalendarClock, roles: ["admin"] },
     ],
   },
   {

@@ -6,7 +6,10 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+use Throwable;
 
 class UserController extends Controller
 {
@@ -24,38 +27,87 @@ class UserController extends Controller
 
     public function store(Request $r)
     {
-        $data = $this->validateData($r, true);
-        $data['username'] = mb_strtolower(trim($data['username']));
-        $data['role_label'] = $this->roleLabel[$data['role']];
-        $data['password'] = Hash::make($data['password']);
-        $u = User::create($data);
-        return response()->json(['ok' => true, 'id' => $u->id], 201);
+        try {
+            $input = $this->validateData($r, true);
+            $username = strtolower(trim($input['username']));
+
+            if (User::where('username', $username)->exists()) {
+                return response()->json([
+                    'message' => 'Username sudah digunakan',
+                    'errors' => ['username' => ['Username sudah digunakan']],
+                ], 422);
+            }
+
+            $user = User::create([
+                'username' => $username,
+                'name' => $input['name'],
+                'nip' => $input['nip'] ?? '',
+                'email' => $input['email'],
+                'unit_kerja' => $input['unitKerja'] ?? '',
+                'role' => $input['role'],
+                'role_label' => $this->roleLabel[$input['role']],
+                'active' => (bool) $input['active'],
+                'password' => Hash::make($input['password']),
+            ]);
+
+            return response()->json(['ok' => true, 'id' => $user->id], 201);
+        } catch (Throwable $e) {
+            Log::error('UserController@store failed', ['error' => $e->getMessage()]);
+            return response()->json([
+                'message' => 'Gagal membuat user: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 
     public function update(Request $r, string $id)
     {
-        $u = User::findOrFail($id);
-        $data = $this->validateData($r, false);
-        if (isset($data['password']) && $data['password']) {
-            $data['password'] = Hash::make($data['password']);
-        } else {
-            unset($data['password']);
+        try {
+            $user = User::findOrFail($id);
+            $input = $this->validateData($r, false);
+
+            $username = strtolower(trim($input['username']));
+            if ($username !== $user->username
+                && User::where('username', $username)->where('id', '!=', $id)->exists()) {
+                return response()->json([
+                    'message' => 'Username sudah digunakan',
+                    'errors' => ['username' => ['Username sudah digunakan']],
+                ], 422);
+            }
+
+            $user->username = $username;
+            $user->name = $input['name'];
+            $user->nip = $input['nip'] ?? '';
+            $user->email = $input['email'];
+            $user->unit_kerja = $input['unitKerja'] ?? '';
+            $user->role = $input['role'];
+            $user->role_label = $this->roleLabel[$input['role']];
+            $user->active = (bool) $input['active'];
+            if (! empty($input['password'])) {
+                $user->password = Hash::make($input['password']);
+            }
+            $user->save();
+
+            return response()->json(['ok' => true, 'id' => $user->id]);
+        } catch (Throwable $e) {
+            Log::error('UserController@update failed', ['error' => $e->getMessage()]);
+            return response()->json([
+                'message' => 'Gagal menyimpan user: ' . $e->getMessage(),
+            ], 500);
         }
-        $data['role_label'] = $this->roleLabel[$data['role']];
-        $u->update($data);
-        return response()->json(['ok' => true, 'id' => $u->id]);
     }
 
     public function destroy(string $id)
     {
-        User::where('id', $id)->delete();
+        User::findOrFail($id)->delete();
         return response()->json(['ok' => true]);
     }
 
     public function setActive(Request $r, string $id)
     {
         $r->validate(['active' => ['required', 'boolean']]);
-        User::where('id', $id)->update(['active' => $r->boolean('active')]);
+        $user = User::findOrFail($id);
+        $user->active = $r->boolean('active');
+        $user->save();
         return response()->json(['ok' => true]);
     }
 
@@ -63,7 +115,9 @@ class UserController extends Controller
     {
         $r->validate(['newPassword' => ['nullable', 'string', 'min:6', 'max:200']]);
         $new = $r->input('newPassword') ?: Str::random(12);
-        User::where('id', $id)->update(['password' => Hash::make($new)]);
+        $user = User::findOrFail($id);
+        $user->password = Hash::make($new);
+        $user->save();
         return response()->json(['ok' => true, 'newPassword' => $new]);
     }
 
@@ -75,10 +129,10 @@ class UserController extends Controller
             'nip' => ['nullable', 'string', 'max:50'],
             'email' => ['required', 'email', 'max:255'],
             'unitKerja' => ['nullable', 'string', 'max:200'],
-            'role' => ['required', 'in:admin,verifikator,verifikasi,petugas_loket'],
+            'role' => ['required', Rule::in(['admin', 'verifikator', 'verifikasi', 'petugas_loket'])],
             'active' => ['required', 'boolean'],
-            'password' => [$isNew ? 'required' : 'nullable', 'string', 'max:200'],
-        ]) + ['unit_kerja' => $r->input('unitKerja', '')];
+            'password' => [$isNew ? 'required' : 'nullable', 'string', 'min:6', 'max:200'],
+        ]);
     }
 
     private function serialize(User $u): array

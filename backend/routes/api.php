@@ -1,27 +1,31 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\BackupStatusController;
 use App\Http\Controllers\Api\FileController;
 use App\Http\Controllers\Api\KegiatanController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\PeminjamController;
 use App\Http\Controllers\Api\PeminjamanController;
+use App\Http\Controllers\Api\RecoveryController;
 use App\Http\Controllers\Api\UserController;
 use Illuminate\Support\Facades\Route;
 
 // Public
 Route::post('/auth/login', [AuthController::class, 'login']);
-Route::get('/auth/me', [AuthController::class, 'me'])->middleware('auth:sanctum');
+Route::get('/auth/me', [AuthController::class, 'me']);
 
-// Authenticated (Sanctum personal access token via Authorization: Bearer ...)
-Route::middleware('auth:sanctum')->group(function () {
+// Authenticated via Authorization: Bearer ...
+Route::middleware('auth.api')->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout']);
 
     // Peminjaman
     Route::get('/peminjaman', [PeminjamanController::class, 'index']);
     Route::post('/peminjaman', [PeminjamanController::class, 'store']);
     Route::patch('/peminjaman/{id}/status', [PeminjamanController::class, 'updateStatus']);
-    Route::delete('/peminjaman/{id}', [PeminjamanController::class, 'destroy'])->middleware('role:admin');
+    // Revisi / pembatalan: admin bebas, role lain hanya data miliknya (dicek di controller).
+    Route::put('/peminjaman/{id}', [PeminjamanController::class, 'update']);
+    Route::delete('/peminjaman/{id}', [PeminjamanController::class, 'destroy']);
 
     // Master data — read untuk semua login, tulis untuk admin
     Route::get('/kegiatan', [KegiatanController::class, 'index']);
@@ -42,6 +46,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/users/{id}', [UserController::class, 'destroy']);
         Route::patch('/users/{id}/active', [UserController::class, 'setActive']);
         Route::post('/users/{id}/reset-password', [UserController::class, 'resetPassword']);
+
+        // Backup & recovery (admin-only)
+        Route::get('/backup/status', [BackupStatusController::class, 'index']);
+        Route::get('/recovery/snapshots', [RecoveryController::class, 'snapshots']);
+        Route::get('/recovery/snapshots/{file}/preview', [RecoveryController::class, 'preview']);
+        Route::post('/recovery/snapshots/{file}/restore', [RecoveryController::class, 'restore']);
+        Route::get('/recovery/binlogs', [RecoveryController::class, 'binlogs']);
+        Route::get('/scheduler/status', [\App\Http\Controllers\Api\SchedulerStatusController::class, 'index']);
     });
 
     // Files

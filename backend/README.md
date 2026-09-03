@@ -31,15 +31,16 @@ API backend untuk aplikasi peminjaman arsip BPN Jakbar.
    php artisan key:generate
    php artisan migrate --force
    php artisan db:seed --force
+    php artisan backup:critical-data --force
    php artisan storage:link
    chmod -R 775 storage bootstrap/cache
    chown -R www-data:www-data .
    ```
 
 3. **Akun seed default** (ganti password setelah login pertama):
-   - `admin` / `admin123`
-   - `petugas` / `admin123`
-   - `informasi` / `admin123`
+   - `admin` / `BpnJakbar#2026!Arsip`
+   - `petugas` / `BpnJakbar#2026!Arsip`
+   - `informasi` / `BpnJakbar#2026!Arsip`
 
 4. **Nginx vhost backend** `/etc/nginx/sites-available/api-arsip.bpnjakbar.id`:
    ```nginx
@@ -105,6 +106,28 @@ API backend untuk aplikasi peminjaman arsip BPN Jakbar.
 | POST | `/api/files/pengamanan/signed-url` | auth |
 | GET  | `/api/files/pengamanan/{path}?signature=...` | signed |
 | POST | `/api/notifications/email` | auth |
+
+## Perlindungan data & recovery
+
+Backend sekarang menyimpan jejak data penting ke `storage/app/backups/critical-data/`
+dalam format terenkripsi setiap ada perubahan pada akun, master data, dan peminjaman.
+Snapshot manual bisa dibuat dengan:
+
+```bash
+cd /var/www/api-arsip
+php artisan backup:critical-data --force
+```
+
+Untuk diversifikasi ke database kedua, buat database MySQL cadangan dengan schema yang
+sama, isi variabel `BACKUP_DB_*` di `.env`, lalu set `BACKUP_DB_ENABLED=true`.
+Setelah itu setiap perubahan data utama akan ikut di-upsert ke database cadangan;
+hapus data di aplikasi tidak menghapus salinan di file backup terenkripsi.
+
+Pastikan cron scheduler Laravel aktif agar backup harian berjalan otomatis:
+
+```bash
+* * * * * cd /var/www/api-arsip && php artisan schedule:run >> /dev/null 2>&1
+```
 
 ## Auth flow (Bearer token Sanctum)
 

@@ -19,10 +19,11 @@ export const ROUTE_ACCESS: { prefix: string; roles: UserRole[] }[] = [
   { prefix: "/peminjaman/konfirmasi", roles: ["admin"] },
   { prefix: "/pengembalian/pengamanan", roles: ["admin"] },
   { prefix: "/pengembalian/admin", roles: ["admin"] },
-  { prefix: "/pengembalian", roles: ["admin", "petugas_loket"] },
+  // Pengembalian bersifat global — dapat dibuka semua role.
+  { prefix: "/pengembalian", roles: ["admin", "petugas_loket", "verifikator", "verifikasi"] },
 
   // Monitoring Peminjaman (tabel inti): admin + petugas loket
-  { prefix: "/monitoring", roles: ["admin", "petugas_loket"] },
+  { prefix: "/monitoring", roles: ["admin", "petugas_loket", "verifikator", "verifikasi"] },
 
   { prefix: "/admin", roles: ["admin"] },
   { prefix: "/master", roles: ["admin"] },

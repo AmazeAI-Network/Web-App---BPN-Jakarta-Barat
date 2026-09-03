@@ -25,13 +25,14 @@ class PeminjamController extends Controller
     {
         $data = $this->validateData($r);
         $data['kode'] = mb_strtoupper($data['kode']);
-        Peminjam::where('id', $id)->update($data);
+        $peminjam = Peminjam::findOrFail($id);
+        $peminjam->update($data);
         return response()->json(['ok' => true, 'id' => $id]);
     }
 
     public function destroy(string $id)
     {
-        Peminjam::where('id', $id)->delete();
+        Peminjam::findOrFail($id)->delete();
         return response()->json(['ok' => true]);
     }
 

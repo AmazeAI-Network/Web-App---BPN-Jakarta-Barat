@@ -87,6 +87,9 @@ export const Route = createRootRoute({
 
 function RootComponent() {
   useChunkErrorRecovery();
+
+
+
   return (
     <>
       <HeadContent />

@@ -7,6 +7,10 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
+        if (Schema::hasTable('demo_accounts')) {
+            return;
+        }
+
         Schema::create('demo_accounts', function (Blueprint $t) {
             $t->uuid('id')->primary();
             $t->string('username', 100)->unique();
@@ -19,6 +23,8 @@ return new class extends Migration {
             $t->string('role_label', 100);
             $t->boolean('active')->default(true);
             $t->timestamp('last_login')->nullable();
+            $t->string('session_token', 64)->nullable()->index();
+            $t->timestamp('session_expires_at')->nullable();
             $t->rememberToken();
             $t->timestamps();
             $t->index('role');
