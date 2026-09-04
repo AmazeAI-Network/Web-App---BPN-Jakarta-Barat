@@ -44,9 +44,7 @@ const mainItems: NavItem[] = [
   { label: "Peminjaman Verifikasi", to: "/peminjaman/verifikasi", icon: CheckCircle2, roles: ["admin"] },
   { label: "Peminjaman Konfirmasi", to: "/peminjaman/konfirmasi", icon: ClipboardCheck, roles: ["admin"] },
   { label: "Peminjaman Informasi", to: "/peminjaman/informasi", icon: BookOpen, roles: ["admin", "verifikator"] },
-  { label: "Pengembalian", to: "/pengembalian", icon: Undo2, roles: ALL },
-  { label: "Pengembalian Admin", to: "/pengembalian/admin", icon: Undo2, roles: ["admin"] },
-  { label: "Monitoring Peminjaman", to: "/monitoring", icon: Activity, roles: ALL },
+  { label: "Pengembalian & Monitoring", to: "/pengembalian", icon: Undo2, roles: ALL },
 ];
 
 const groups: NavGroup[] = [

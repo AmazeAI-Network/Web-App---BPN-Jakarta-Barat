@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Search,
   Loader2,
@@ -19,6 +20,8 @@ import {
   CheckCircle2,
   Clock,
   PackageCheck,
+  Activity,
+  ShieldCheck,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
@@ -27,11 +30,21 @@ import {
   type StatusPeminjaman,
 } from "@/lib/peminjaman-store";
 import { DetailPeminjamanDialog } from "@/components/DetailPeminjamanDialog";
+import { MonitoringPanel } from "@/components/MonitoringPanel";
+import { PengembalianAdminPanel } from "@/components/PengembalianAdminPanel";
 import { useAuth } from "@/lib/auth";
 
+type TabKey = "pengembalian" | "admin" | "monitoring";
+
 export const Route = createFileRoute("/pengembalian")({
-  head: () => ({ meta: [{ title: "Pengembalian — BPN Jakarta Barat" }] }),
-  component: PengembalianRegisterPage,
+  validateSearch: (search: Record<string, unknown>): { tab?: TabKey } => {
+    const t = search.tab;
+    return {
+      tab: t === "admin" || t === "monitoring" || t === "pengembalian" ? t : undefined,
+    };
+  },
+  head: () => ({ meta: [{ title: "Pengembalian & Monitoring — BPN Jakarta Barat" }] }),
+  component: PengembalianPage,
 });
 
 function fmtDate(iso?: string) {
@@ -51,7 +64,58 @@ function displayPeminjam(p: Peminjaman) {
 
 type Mode = "ajukan" | "konfirmasi";
 
-function PengembalianRegisterPage() {
+function PengembalianPage() {
+  const { tab } = Route.useSearch();
+  const navigate = useNavigate({ from: Route.fullPath });
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
+
+  const activeTab: TabKey =
+    tab === "admin" && !isAdmin ? "pengembalian" : (tab ?? "pengembalian");
+
+  const setTab = (t: string) =>
+    void navigate({
+      search: (prev) => ({ ...prev, tab: t as TabKey }),
+      replace: true,
+    });
+
+  return (
+    <AppShell
+      title="Pengembalian & Monitoring"
+      subtitle="Pengembalian warkah (global untuk semua akun) dan monitoring peminjaman dalam satu halaman"
+    >
+      <Tabs value={activeTab} onValueChange={setTab} className="space-y-6">
+        <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
+          <TabsTrigger value="pengembalian" className="gap-1.5">
+            <Undo2 className="h-4 w-4" /> Pengembalian
+          </TabsTrigger>
+          {isAdmin && (
+            <TabsTrigger value="admin" className="gap-1.5">
+              <ShieldCheck className="h-4 w-4" /> Pengembalian Admin
+            </TabsTrigger>
+          )}
+          <TabsTrigger value="monitoring" className="gap-1.5">
+            <Activity className="h-4 w-4" /> Monitoring Peminjaman
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="pengembalian" className="mt-0">
+          <PengembalianPanel />
+        </TabsContent>
+        {isAdmin && (
+          <TabsContent value="admin" className="mt-0">
+            <PengembalianAdminPanel />
+          </TabsContent>
+        )}
+        <TabsContent value="monitoring" className="mt-0">
+          <MonitoringPanel />
+        </TabsContent>
+      </Tabs>
+    </AppShell>
+  );
+}
+
+function PengembalianPanel() {
   const { items, loading, changeStatus } = usePeminjaman();
   const { user } = useAuth();
   const [q, setQ] = useState("");
@@ -207,86 +271,84 @@ function PengembalianRegisterPage() {
   };
 
   return (
-    <AppShell title="Pengembalian" subtitle="Ajukan dan konfirmasi pengembalian warkah — dapat digunakan semua akun">
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <Card className="shadow-card">
-            <CardContent className="flex items-center justify-between p-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Sedang Dipinjam
-                </p>
-                <p className="mt-1 text-2xl font-bold text-foreground">{dipinjam.length}</p>
-              </div>
-              <div className="rounded-lg bg-primary/10 p-2.5 text-primary">
-                <PackageCheck className="h-5 w-5" />
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="shadow-card">
-            <CardContent className="flex items-center justify-between p-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Proses Dikembalikan
-                </p>
-                <p className="mt-1 text-2xl font-bold text-foreground">{prosesKembali.length}</p>
-              </div>
-              <div className="rounded-lg bg-warning/10 p-2.5 text-warning">
-                <Clock className="h-5 w-5" />
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="shadow-card">
-            <CardContent className="flex items-center justify-between p-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Terlambat (&gt;7 hari)
-                </p>
-                <p className="mt-1 text-2xl font-bold text-foreground">
-                  {dipinjam.filter((p) => overdueOf(p.tglPengajuan) > 7).length}
-                </p>
-              </div>
-              <div className="rounded-lg bg-destructive/10 p-2.5 text-destructive">
-                <Undo2 className="h-5 w-5" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Cari no.hak, peminjam, register, desa, no.SU/warkah/HT, kegiatan..."
-            className="h-9 pl-8 text-sm"
-          />
-        </div>
-
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <PackageCheck className="h-5 w-5 text-warning" />
-              Ajukan Pengembalian ({filteredDipinjam.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            {renderTable(filteredDipinjam, "ajukan", "Tidak ada peminjaman yang sedang berjalan.")}
+          <CardContent className="flex items-center justify-between p-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Sedang Dipinjam
+              </p>
+              <p className="mt-1 text-2xl font-bold text-foreground">{dipinjam.length}</p>
+            </div>
+            <div className="rounded-lg bg-primary/10 p-2.5 text-primary">
+              <PackageCheck className="h-5 w-5" />
+            </div>
           </CardContent>
         </Card>
-
         <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Undo2 className="h-5 w-5 text-success" />
-              Konfirmasi Pengembalian ({filteredProses.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            {renderTable(filteredProses, "konfirmasi", "Tidak ada permintaan pengembalian yang menunggu konfirmasi.")}
+          <CardContent className="flex items-center justify-between p-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Proses Dikembalikan
+              </p>
+              <p className="mt-1 text-2xl font-bold text-foreground">{prosesKembali.length}</p>
+            </div>
+            <div className="rounded-lg bg-warning/10 p-2.5 text-warning">
+              <Clock className="h-5 w-5" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="shadow-card">
+          <CardContent className="flex items-center justify-between p-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Terlambat (&gt;7 hari)
+              </p>
+              <p className="mt-1 text-2xl font-bold text-foreground">
+                {dipinjam.filter((p) => overdueOf(p.tglPengajuan) > 7).length}
+              </p>
+            </div>
+            <div className="rounded-lg bg-destructive/10 p-2.5 text-destructive">
+              <Undo2 className="h-5 w-5" />
+            </div>
           </CardContent>
         </Card>
       </div>
+
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Cari no.hak, peminjam, register, desa, no.SU/warkah/HT, kegiatan..."
+          className="h-9 pl-8 text-sm"
+        />
+      </div>
+
+      <Card className="shadow-card">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <PackageCheck className="h-5 w-5 text-warning" />
+            Ajukan Pengembalian ({filteredDipinjam.length})
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {renderTable(filteredDipinjam, "ajukan", "Tidak ada peminjaman yang sedang berjalan.")}
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-card">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Undo2 className="h-5 w-5 text-success" />
+            Konfirmasi Pengembalian ({filteredProses.length})
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {renderTable(filteredProses, "konfirmasi", "Tidak ada permintaan pengembalian yang menunggu konfirmasi.")}
+        </CardContent>
+      </Card>
 
       <DetailPeminjamanDialog item={detail} onClose={() => setDetail(null)} />
 
@@ -360,7 +422,7 @@ function PengembalianRegisterPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </AppShell>
+    </div>
   );
 }
 

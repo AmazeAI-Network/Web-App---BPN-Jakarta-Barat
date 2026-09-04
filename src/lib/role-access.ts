@@ -15,14 +15,12 @@ export const ROUTE_ACCESS: { prefix: string; roles: UserRole[] }[] = [
   // Verifikasi: verifikator + verifikasi + admin
   { prefix: "/peminjaman/verifikasi", roles: ["admin", "verifikator", "verifikasi"] },
 
-  // Konfirmasi & Pengembalian: hanya admin
+  // Konfirmasi & Pengembalian Pengamanan: hanya admin
   { prefix: "/peminjaman/konfirmasi", roles: ["admin"] },
   { prefix: "/pengembalian/pengamanan", roles: ["admin"] },
-  { prefix: "/pengembalian/admin", roles: ["admin"] },
-  // Pengembalian bersifat global — dapat dibuka semua role.
+  // Pengembalian & Monitoring bersifat global — dapat dibuka semua role.
+  // (Pengembalian Admin & Monitoring lama dialihkan ke tab di /pengembalian)
   { prefix: "/pengembalian", roles: ["admin", "petugas_loket", "verifikator", "verifikasi"] },
-
-  // Monitoring Peminjaman (tabel inti): admin + petugas loket
   { prefix: "/monitoring", roles: ["admin", "petugas_loket", "verifikator", "verifikasi"] },
 
   { prefix: "/admin", roles: ["admin"] },
