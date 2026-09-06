@@ -505,15 +505,15 @@ export function MonitoringPanel() {
                               </Button>
                             </>
                           )}
-                          {!isAdmin && p.status === "Sedang Dipinjam" && (
+                          {p.status === "Sedang Dipinjam" && (
                             <Button
                               size="sm"
                               className="h-8 gap-1.5 bg-warning text-warning-foreground hover:bg-warning/90"
                               onClick={() => setToArchive(p)}
-                              title="Verifikasi pengembalian peminjaman"
+                              title="Ajukan pengembalian peminjaman"
                             >
                               <PackageCheck className="h-3.5 w-3.5" />
-                              Verifikasi Pengembalian
+                              Pengembalian
                             </Button>
                           )}
                         </div>
@@ -625,12 +625,12 @@ export function MonitoringPanel() {
         </DialogContent>
       </Dialog>
 
-      {/* Verifikasi pengembalian (loket) */}
+      {/* Pengembalian */}
       <Dialog open={!!toArchive} onOpenChange={(o) => !busy && !o && setToArchive(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <PackageCheck className="h-5 w-5 text-success" /> Verifikasi Pengembalian
+              <PackageCheck className="h-5 w-5 text-success" /> Pengembalian
             </DialogTitle>
             <DialogDescription>
               Apakah Peminjaman ini sudah selesai dipinjam dan akan dikembalikan ke Arsip?
