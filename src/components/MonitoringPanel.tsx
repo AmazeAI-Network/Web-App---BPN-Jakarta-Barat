@@ -111,13 +111,13 @@ export function MonitoringPanel() {
 
   const isAdmin = user?.role === "admin";
 
-  const items = useMemo(() => {
-    if (isAdmin) return allItems;
-    if (!user) return [];
-    return allItems.filter(
-      (p) => p.createdBy === user.username || p.createdBy === user.name,
-    );
-  }, [allItems, isAdmin, user]);
+  // Monitoring bersifat global: semua akun dapat mencari No. Hak siapa pun
+  // dan melihat statusnya (Dipinjam / Proses / Sudah Dikembalikan, dst).
+  const items = allItems;
+
+  // Aksi edit/hapus data hanya untuk admin atau pemilik data (yang menginput).
+  const canMutate = (p: Peminjaman) =>
+    isAdmin || p.createdBy === user?.username || p.createdBy === user?.name;
 
   const kegiatanOptions = useMemo(
     () => Array.from(new Set(items.map((p) => p.kegiatan).filter(Boolean))).sort(),
@@ -451,38 +451,7 @@ export function MonitoringPanel() {
                             <Eye className="h-3.5 w-3.5" />
                             Detail
                           </Button>
-                          {isAdmin && (
-                            <>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-8 gap-1.5"
-                                onClick={() => setToRevise(p)}
-                                title="Revisi data"
-                              >
-                                <Pencil className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-8 gap-1.5"
-                                onClick={() => setToRevert(p)}
-                                title="Kembalikan ke Proses"
-                              >
-                                <Undo2 className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-8 gap-1.5 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                                onClick={() => setToDelete(p)}
-                                title="Hapus data"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            </>
-                          )}
-                          {!isAdmin && (
+                          {canMutate(p) && (
                             <>
                               <Button
                                 size="sm"
@@ -492,14 +461,23 @@ export function MonitoringPanel() {
                                 title="Revisi data yang sudah disubmit"
                               >
                                 <Pencil className="h-3.5 w-3.5" />
-                                Revisi
+                                {!isAdmin && "Revisi"}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8 gap-1.5"
+                                onClick={() => setToRevert(p)}
+                                title="Kembalikan ke Proses Pencarian"
+                              >
+                                <Undo2 className="h-3.5 w-3.5" />
                               </Button>
                               <Button
                                 size="sm"
                                 variant="outline"
                                 className="h-8 gap-1.5 text-destructive hover:bg-destructive/10 hover:text-destructive"
                                 onClick={() => setToDelete(p)}
-                                title="Batalkan / hapus data yang Anda input"
+                                title="Hapus / batalkan data"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
                               </Button>
