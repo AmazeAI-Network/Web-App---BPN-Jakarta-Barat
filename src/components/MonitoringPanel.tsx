@@ -452,17 +452,19 @@ export function MonitoringPanel() {
                             Detail
                           </Button>
                           {canMutate(p) && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 gap-1.5"
+                              onClick={() => setToRevise(p)}
+                              title="Revisi data yang sudah disubmit"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                              {!isAdmin && "Revisi"}
+                            </Button>
+                          )}
+                          {isAdmin && (
                             <>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-8 gap-1.5"
-                                onClick={() => setToRevise(p)}
-                                title="Revisi data yang sudah disubmit"
-                              >
-                                <Pencil className="h-3.5 w-3.5" />
-                                {!isAdmin && "Revisi"}
-                              </Button>
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -481,18 +483,18 @@ export function MonitoringPanel() {
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
                               </Button>
+                              {p.status === "Sedang Dipinjam" && (
+                                <Button
+                                  size="sm"
+                                  className="h-8 gap-1.5 bg-warning text-warning-foreground hover:bg-warning/90"
+                                  onClick={() => setToArchive(p)}
+                                  title="Ajukan pengembalian peminjaman"
+                                >
+                                  <PackageCheck className="h-3.5 w-3.5" />
+                                  Pengembalian
+                                </Button>
+                              )}
                             </>
-                          )}
-                          {p.status === "Sedang Dipinjam" && (
-                            <Button
-                              size="sm"
-                              className="h-8 gap-1.5 bg-warning text-warning-foreground hover:bg-warning/90"
-                              onClick={() => setToArchive(p)}
-                              title="Ajukan pengembalian peminjaman"
-                            >
-                              <PackageCheck className="h-3.5 w-3.5" />
-                              Pengembalian
-                            </Button>
                           )}
                         </div>
                       </td>
