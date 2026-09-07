@@ -79,6 +79,19 @@ function PengembalianPage() {
       replace: true,
     });
 
+  // Non-admin: hanya halaman Pengembalian (Monitoring dipisah ke /monitoring,
+  // bagian Konfirmasi Pengembalian disembunyikan — khusus Admin).
+  if (!isAdmin) {
+    return (
+      <AppShell
+        title="Pengembalian"
+        subtitle="Ajukan pengembalian warkah yang sedang dipinjam"
+      >
+        <PengembalianPanel isAdmin={false} />
+      </AppShell>
+    );
+  }
+
   return (
     <AppShell
       title="Pengembalian & Monitoring"
@@ -89,24 +102,20 @@ function PengembalianPage() {
           <TabsTrigger value="pengembalian" className="gap-1.5">
             <Undo2 className="h-4 w-4" /> Pengembalian
           </TabsTrigger>
-          {isAdmin && (
-            <TabsTrigger value="admin" className="gap-1.5">
-              <ShieldCheck className="h-4 w-4" /> Pengembalian Admin
-            </TabsTrigger>
-          )}
+          <TabsTrigger value="admin" className="gap-1.5">
+            <ShieldCheck className="h-4 w-4" /> Pengembalian Admin
+          </TabsTrigger>
           <TabsTrigger value="monitoring" className="gap-1.5">
             <Activity className="h-4 w-4" /> Monitoring Peminjaman
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="pengembalian" className="mt-0">
-          <PengembalianPanel />
+          <PengembalianPanel isAdmin />
         </TabsContent>
-        {isAdmin && (
-          <TabsContent value="admin" className="mt-0">
-            <PengembalianAdminPanel />
-          </TabsContent>
-        )}
+        <TabsContent value="admin" className="mt-0">
+          <PengembalianAdminPanel />
+        </TabsContent>
         <TabsContent value="monitoring" className="mt-0">
           <MonitoringPanel />
         </TabsContent>
@@ -115,7 +124,7 @@ function PengembalianPage() {
   );
 }
 
-function PengembalianPanel() {
+function PengembalianPanel({ isAdmin = true }: { isAdmin?: boolean }) {
   const { items, loading, changeStatus } = usePeminjaman();
   const { user } = useAuth();
   const [q, setQ] = useState("");
@@ -272,7 +281,7 @@ function PengembalianPanel() {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className={`grid grid-cols-1 gap-4 ${isAdmin ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
         <Card className="shadow-card">
           <CardContent className="flex items-center justify-between p-4">
             <div>
@@ -286,19 +295,21 @@ function PengembalianPanel() {
             </div>
           </CardContent>
         </Card>
-        <Card className="shadow-card">
-          <CardContent className="flex items-center justify-between p-4">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Proses Dikembalikan
-              </p>
-              <p className="mt-1 text-2xl font-bold text-foreground">{prosesKembali.length}</p>
-            </div>
-            <div className="rounded-lg bg-warning/10 p-2.5 text-warning">
-              <Clock className="h-5 w-5" />
-            </div>
-          </CardContent>
-        </Card>
+        {isAdmin && (
+          <Card className="shadow-card">
+            <CardContent className="flex items-center justify-between p-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Proses Dikembalikan
+                </p>
+                <p className="mt-1 text-2xl font-bold text-foreground">{prosesKembali.length}</p>
+              </div>
+              <div className="rounded-lg bg-warning/10 p-2.5 text-warning">
+                <Clock className="h-5 w-5" />
+              </div>
+            </CardContent>
+          </Card>
+        )}
         <Card className="shadow-card">
           <CardContent className="flex items-center justify-between p-4">
             <div>
@@ -338,17 +349,19 @@ function PengembalianPanel() {
         </CardContent>
       </Card>
 
-      <Card className="shadow-card">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Undo2 className="h-5 w-5 text-success" />
-            Konfirmasi Pengembalian ({filteredProses.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          {renderTable(filteredProses, "konfirmasi", "Tidak ada permintaan pengembalian yang menunggu konfirmasi.")}
-        </CardContent>
-      </Card>
+      {isAdmin && (
+        <Card className="shadow-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Undo2 className="h-5 w-5 text-success" />
+              Konfirmasi Pengembalian ({filteredProses.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            {renderTable(filteredProses, "konfirmasi", "Tidak ada permintaan pengembalian yang menunggu konfirmasi.")}
+          </CardContent>
+        </Card>
+      )}
 
       <DetailPeminjamanDialog item={detail} onClose={() => setDetail(null)} />
 

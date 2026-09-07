@@ -44,7 +44,10 @@ const mainItems: NavItem[] = [
   { label: "Peminjaman Verifikasi", to: "/peminjaman/verifikasi", icon: CheckCircle2, roles: ["admin"] },
   { label: "Peminjaman Konfirmasi", to: "/peminjaman/konfirmasi", icon: ClipboardCheck, roles: ["admin"] },
   { label: "Peminjaman Informasi", to: "/peminjaman/informasi", icon: BookOpen, roles: ["admin", "verifikator"] },
-  { label: "Pengembalian & Monitoring", to: "/pengembalian", icon: Undo2, roles: ALL },
+  // Admin: halaman gabungan. Non-admin: Pengembalian dan Monitoring dipisah.
+  { label: "Pengembalian & Monitoring", to: "/pengembalian", icon: Undo2, roles: ["admin"] },
+  { label: "Pengembalian", to: "/pengembalian", icon: Undo2, roles: ["petugas_loket", "verifikator", "verifikasi"] },
+  { label: "Monitoring", to: "/monitoring", icon: Activity, roles: ["petugas_loket", "verifikator", "verifikasi"] },
 ];
 
 const groups: NavGroup[] = [
