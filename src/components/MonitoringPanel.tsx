@@ -42,11 +42,15 @@ import {
 } from "@/lib/peminjaman-store";
 import { DetailPeminjamanDialog } from "@/components/DetailPeminjamanDialog";
 import { RevisePeminjamanDialog } from "@/components/RevisePeminjamanDialog";
-import { exportRekapitulasiExcel, exportRekapPerStatusExcel, exportBulananExcel } from "@/lib/export-excel";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { deletePeminjaman, updatePeminjamanStatus } from "@/lib/data.functions";
 import { toast } from "sonner";
+
+// Modul Excel (xlsx) berat — dimuat hanya saat tombol ekspor ditekan agar
+// halaman Monitoring tidak lambat/blank saat dibuka.
+const loadExcel = () => import("@/lib/export-excel");
+
 
 function fmtDate(iso?: string) {
   if (!iso) return "—";
@@ -154,8 +158,9 @@ export function MonitoringPanel() {
       });
   }, [items, q, statusFilter, kegiatanFilter, sorts]);
 
-  // Reset ke halaman 1 saat filter/pencarian berubah
-  useMemo(() => {
+  // Reset ke halaman 1 saat filter/pencarian berubah (efek, bukan saat render —
+  // setState saat render memicu render berulang / halaman blank & lemot).
+  useEffect(() => {
     setPage(1);
   }, [q, statusFilter, kegiatanFilter, pageSize]);
 
@@ -175,7 +180,9 @@ export function MonitoringPanel() {
       "Diamankan": 0,
       "Dikembalikan": 0,
     };
-    items.forEach((p) => c[p.status]++);
+    items.forEach((p) => {
+      if (typeof c[p.status] === "number") c[p.status] += 1;
+    });
     return c;
   }, [items]);
 
@@ -264,8 +271,9 @@ export function MonitoringPanel() {
               variant="outline"
               className="h-9 gap-1.5"
               disabled={filtered.length === 0}
-              onClick={() => {
-                exportRekapitulasiExcel(filtered);
+              onClick={async () => {
+                const m = await loadExcel();
+                m.exportRekapitulasiExcel(filtered);
                 toast.success("Rekapitulasi diekspor", {
                   description: `${filtered.length} baris ke file Excel`,
                 });
@@ -279,8 +287,9 @@ export function MonitoringPanel() {
               variant="outline"
               className="h-9 gap-1.5"
               disabled={items.length === 0}
-              onClick={() => {
-                exportRekapPerStatusExcel(items);
+              onClick={async () => {
+                const m = await loadExcel();
+                m.exportRekapPerStatusExcel(items);
                 toast.success("Rekap per status diekspor", {
                   description: `${items.length} baris, dipisah per status`,
                 });
@@ -319,8 +328,9 @@ export function MonitoringPanel() {
                 variant="outline"
                 className="h-9 gap-1.5"
                 disabled={items.length === 0}
-                onClick={() => {
-                  exportBulananExcel(items, Number(tahunExport), Number(bulanExport));
+                onClick={async () => {
+                  const m = await loadExcel();
+                  m.exportBulananExcel(items, Number(tahunExport), Number(bulanExport));
                   toast.success("Laporan bulanan diekspor", {
                     description: `Periode 1–31, bulan ${bulanExport}/${tahunExport}`,
                   });
